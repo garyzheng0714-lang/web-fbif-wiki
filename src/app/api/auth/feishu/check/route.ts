@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { env } from "@/server/env";
 import { getTenantAccessToken } from "@/server/feishu/client";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   if (!env.FEISHU_APP_ID || !env.FEISHU_APP_SECRET) {
     return NextResponse.json(
@@ -32,4 +34,3 @@ export async function GET() {
     );
   }
 }
-

@@ -5,6 +5,7 @@ import { buildFeishuOAuthUrl } from "@/server/feishu/oauth";
 import { env } from "@/server/env";
 
 const FEISHU_OAUTH_STATE_COOKIE = "fbif_oauth_state";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   if (!env.FEISHU_APP_ID || !env.FEISHU_APP_SECRET) {

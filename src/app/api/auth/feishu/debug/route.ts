@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { env } from "@/server/env";
 import { buildFeishuOAuthUrl, getFeishuOAuthRedirectUri } from "@/server/feishu/oauth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const state = "debug_state";
   return NextResponse.json({
@@ -15,4 +17,3 @@ export async function GET() {
     },
   });
 }
-
