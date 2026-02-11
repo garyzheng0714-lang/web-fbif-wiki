@@ -5,6 +5,7 @@ import { enqueuePollSync } from "@/server/queue";
 
 const lastQueuedAtBySite = new Map<string, number>();
 let started = false;
+let wsClientRef: lark.WSClient | null = null;
 
 async function enqueuePollSyncWithDebounce(siteId: string): Promise<boolean> {
   const now = Date.now();
@@ -16,6 +17,7 @@ async function enqueuePollSyncWithDebounce(siteId: string): Promise<boolean> {
 }
 
 export async function startFeishuLongConnection(): Promise<void> {
+  if (started && wsClientRef) return;
   if (started) return;
   if (env.FEISHU_EVENT_SUBSCRIBE_MODE !== "longconn") return;
   if (!env.FEISHU_APP_ID || !env.FEISHU_APP_SECRET) {
@@ -47,8 +49,14 @@ export async function startFeishuLongConnection(): Promise<void> {
     loggerLevel: lark.LoggerLevel.info,
   });
 
-  await wsClient.start({ eventDispatcher });
+  wsClientRef = wsClient;
+  void wsClient.start({ eventDispatcher }).catch((e: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error("[longconn] start failed", e);
+    started = false;
+    wsClientRef = null;
+  });
   started = true;
   // eslint-disable-next-line no-console
-  console.log("[longconn] started");
+  console.log("[longconn] starting", { connected: Boolean(wsClientRef) });
 }
