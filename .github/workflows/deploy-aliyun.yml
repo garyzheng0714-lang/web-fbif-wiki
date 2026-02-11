@@ -54,12 +54,14 @@ jobs:
         env:
           ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}
           ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+          ALIYUN_SSH_PORT: ${{ secrets.ALIYUN_SSH_PORT }}
           ALIYUN_SSH_KEY: ${{ secrets.ALIYUN_SSH_KEY }}
           ALIYUN_SSH_KEY_B64: ${{ secrets.ALIYUN_SSH_KEY_B64 }}
         run: |
           set -euo pipefail
           HOST="${ALIYUN_HOST:-112.124.103.65}"
           USER="${ALIYUN_USER:-root}"
+          PORT="${ALIYUN_SSH_PORT:-22}"
 
           mkdir -p ~/.ssh
 
@@ -89,23 +91,37 @@ jobs:
 
           chmod 600 ~/.ssh/id_aliyun
 
+          echo "Runner public ip: $(curl -fsS https://api.ipify.org || echo unknown)"
+          echo "Target SSH endpoint: ${HOST}:${PORT}"
+
           if ! ssh-keygen -y -f ~/.ssh/id_aliyun >/dev/null 2>/tmp/ssh_key_err.log; then
             echo "::error::Invalid private key content in Actions secret."
             cat /tmp/ssh_key_err.log || true
             exit 1
           fi
 
-          if ! ssh \
-            -i ~/.ssh/id_aliyun \
-            -o BatchMode=yes \
-            -o ConnectTimeout=10 \
-            -o StrictHostKeyChecking=accept-new \
-            "${USER}@${HOST}" \
-            "echo SSH_OK" >/tmp/ssh_probe_out.log 2>/tmp/ssh_probe_err.log; then
+          PROBE_OK=0
+          for attempt in 1 2 3 4; do
+            if ssh \
+              -i ~/.ssh/id_aliyun \
+              -p "${PORT}" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o StrictHostKeyChecking=accept-new \
+              "${USER}@${HOST}" \
+              "echo SSH_OK" >/tmp/ssh_probe_out.log 2>/tmp/ssh_probe_err.log; then
+              PROBE_OK=1
+              break
+            fi
+            echo "SSH probe attempt ${attempt} failed; retrying in 8s..."
+            sleep 8
+          done
+
+          if [ "${PROBE_OK}" -ne 1 ]; then
             if grep -qi "Permission denied" /tmp/ssh_probe_err.log; then
               echo "::error::SSH authentication failed. Ensure public key is in ~/.ssh/authorized_keys."
-            elif grep -Eqi "Connection timed out|No route to host|Connection refused" /tmp/ssh_probe_err.log; then
-              echo "::error::Cannot reach server SSH/22 from GitHub Actions. Check Aliyun security group/firewall."
+            elif grep -Eqi "Connection timed out during banner exchange|Connection timed out|No route to host|Connection refused" /tmp/ssh_probe_err.log; then
+              echo "::error::Cannot reach server SSH endpoint from GitHub Actions. Check Aliyun security group/firewall/sshd."
             else
               echo "::error::SSH probe failed."
             fi
@@ -119,23 +135,40 @@ jobs:
         env:
           ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}
           ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+          ALIYUN_SSH_PORT: ${{ secrets.ALIYUN_SSH_PORT }}
         run: |
           set -euo pipefail
           HOST="${ALIYUN_HOST:-112.124.103.65}"
           USER="${ALIYUN_USER:-root}"
+          PORT="${ALIYUN_SSH_PORT:-22}"
 
-          scp \
-            -i ~/.ssh/id_aliyun \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new \
-            release.tgz \
-            "${USER}@${HOST}:/tmp/release.tgz"
+          UPLOAD_OK=0
+          for attempt in 1 2 3; do
+            if scp \
+              -P "${PORT}" \
+              -i ~/.ssh/id_aliyun \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o StrictHostKeyChecking=accept-new \
+              release.tgz \
+              "${USER}@${HOST}:/tmp/release.tgz"; then
+              UPLOAD_OK=1
+              break
+            fi
+            echo "Release upload attempt ${attempt} failed; retrying in 8s..."
+            sleep 8
+          done
+
+          if [ "${UPLOAD_OK}" -ne 1 ]; then
+            echo "::error::Failed to upload release.tgz to server after retries."
+            exit 1
+          fi
 
       - name: Deploy On Server
         env:
           ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}
           ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+          ALIYUN_SSH_PORT: ${{ secrets.ALIYUN_SSH_PORT }}
           APP_DIR: ${{ secrets.APP_DIR }}
           APP_ENV_B64: ${{ secrets.APP_ENV_B64 }}
           GH_SHA: ${{ github.sha }}
@@ -143,6 +176,7 @@ jobs:
           set -euo pipefail
           HOST="${ALIYUN_HOST:-112.124.103.65}"
           USER="${ALIYUN_USER:-root}"
+          PORT="${ALIYUN_SSH_PORT:-22}"
 
           cat > /tmp/remote_deploy.sh <<'REMOTE_SCRIPT'
             set -euo pipefail
@@ -241,13 +275,27 @@ jobs:
             "APP_DIR=%q APP_ENV_B64=%q GH_SHA=%q" \
             "${APP_DIR:-}" "${APP_ENV_B64:-}" "${GH_SHA}")"
 
-          ssh \
-            -i ~/.ssh/id_aliyun \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new \
-            "${USER}@${HOST}" \
-            "${REMOTE_ENV} bash -s" < /tmp/remote_deploy.sh
+          DEPLOY_OK=0
+          for attempt in 1 2 3; do
+            if ssh \
+              -i ~/.ssh/id_aliyun \
+              -p "${PORT}" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o StrictHostKeyChecking=accept-new \
+              "${USER}@${HOST}" \
+              "${REMOTE_ENV} bash -s" < /tmp/remote_deploy.sh; then
+              DEPLOY_OK=1
+              break
+            fi
+            echo "Remote deploy attempt ${attempt} failed; retrying in 10s..."
+            sleep 10
+          done
+
+          if [ "${DEPLOY_OK}" -ne 1 ]; then
+            echo "::error::Remote deploy failed after retries."
+            exit 1
+          fi
 
       - name: Cleanup
         if: always()
