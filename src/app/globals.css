@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.theme-clean {
+  --doc-primary: #1d4ed8;
+  --doc-accent-bg: #eff6ff;
+}
+
+.theme-help {
+  --doc-primary: #0f766e;
+  --doc-accent-bg: #ecfeff;
+}
+
+.fbif-doc {
+  color: #1f2937;
+  line-height: 1.85;
+  font-size: 1.05rem;
+}
+
+.fbif-doc .fbif-h,
+.fbif-doc h1,
+.fbif-doc h2,
+.fbif-doc h3,
+.fbif-doc h4,
+.fbif-doc h5,
+.fbif-doc h6 {
+  font-weight: 650;
+  color: #111827;
+  margin-top: 1.7rem;
+  margin-bottom: 0.7rem;
+  scroll-margin-top: 2rem;
+}
+
+.fbif-doc .fbif-h1 {
+  font-size: 2rem;
+}
+
+.fbif-doc .fbif-h2 {
+  font-size: 1.6rem;
+}
+
+.fbif-doc .fbif-h3 {
+  font-size: 1.35rem;
+}
+
+.fbif-doc .fbif-h4 {
+  font-size: 1.15rem;
+}
+
+.fbif-doc .fbif-p {
+  margin: 0.8rem 0;
+}
+
+.fbif-doc .fbif-ul,
+.fbif-doc .fbif-ol {
+  margin: 0.8rem 0 0.8rem 1.4rem;
+}
+
+.fbif-doc .fbif-li {
+  margin: 0.3rem 0;
+}
+
+.fbif-doc .fbif-inline-code {
+  border-radius: 0.35rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.05rem 0.3rem;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+.fbif-doc .fbif-pre {
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow: auto;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.fbif-doc .fbif-code {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.fbif-doc .fbif-quote {
+  border-left: 4px solid var(--doc-primary);
+  background: var(--doc-accent-bg);
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  padding: 0.8rem 1rem;
+}
+
+.fbif-doc .fbif-hr {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 1.2rem 0;
+}
+
+.fbif-doc .fbif-callout {
+  border: 1px solid #dbeafe;
+  background: var(--doc-accent-bg);
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  margin: 0.9rem 0;
+}
+
+.fbif-doc .fbif-unsupported,
+.fbif-doc .fbif-unknown {
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  border-radius: 0.6rem;
+  background: #f8fafc;
+  padding: 0.65rem 0.8rem;
+  margin: 0.6rem 0;
+  font-size: 0.92rem;
+}
+
+.fbif-doc a {
+  color: var(--doc-primary);
+  text-decoration: underline;
+}

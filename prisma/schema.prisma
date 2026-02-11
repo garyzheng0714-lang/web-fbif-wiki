@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdminRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SyncJobType {
+  FULL
+  POLL
+  FILE
+}
+
+enum SyncJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum AssetKind {
+  IMAGE
+  FILE
+}
+
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  tenantKey    String
+  feishuUserId String   @unique
+  openId       String   @unique
+  name         String
+  avatarUrl    String?
+  role         AdminRole @default(ADMIN)
+
+  tokens     FeishuOAuthToken[]
+  bindings   SpaceBinding[]    @relation("BoundByUser")
+  auditLogs  AuditLog[]        @relation("AuditActor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeishuOAuthToken {
+  id                   String   @id @default(uuid())
+  userId               String
+  tenantKey            String
+  accessTokenEnc       String
+  refreshTokenEnc      String
+  accessTokenExpiresAt DateTime
+
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([tenantKey])
+  @@unique([userId, tenantKey])
+}
+
+model Site {
+  id      String @id @default(uuid())
+  slug    String @unique
+  name    String
+  theme   String @default("clean")
+  homePageSlug String?
+
+  binding SpaceBinding?
+  nodes   WikiNode[]
+  pages   Page[]
+  jobs    SyncJob[]
+  assets  Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SpaceBinding {
+  id           String @id @default(uuid())
+  siteId       String @unique
+  spaceId      String
+  boundByUserId String
+  syncEnabled  Boolean @default(true)
+  rootNodeToken String?
+
+  lastFullSyncAt DateTime?
+  lastPollSyncAt DateTime?
+
+  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  boundBy   AdminUser @relation("BoundByUser", fields: [boundByUserId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([spaceId])
+}
+
+model WikiNode {
+  id              String @id @default(uuid())
+  siteId          String
+  nodeToken       String
+  parentNodeToken String?
+  title           String
+  objType         String
+  objToken        String
+  objEditTimeMs   BigInt?
+
+  site      Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([siteId, nodeToken])
+  @@index([siteId, parentNodeToken])
+  @@index([siteId, objToken])
+}
+
+model Page {
+  id        String @id @default(uuid())
+  siteId    String
+  nodeToken String
+
+  title     String
+  slug      String
+  status    PageStatus @default(DRAFT)
+  navVisible Boolean @default(true)
+  sort      Int @default(0)
+
+  site      Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  revisions PageRevision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([siteId, nodeToken])
+  @@unique([siteId, slug])
+  @@index([siteId, status])
+}
+
+model PageRevision {
+  id              String @id @default(uuid())
+  pageId          String
+  sourceObjType   String
+  sourceObjToken  String
+  sourceEditTimeMs BigInt?
+  hash            String
+  html            String
+  tocJson         Json?
+
+  page      Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([pageId, createdAt])
+  @@index([hash])
+}
+
+model SyncJob {
+  id        String @id @default(uuid())
+  siteId    String
+  type      SyncJobType
+  status    SyncJobStatus @default(PENDING)
+  metaJson  Json?
+  error     String?
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  site      Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([status])
+}
+
+model Asset {
+  id          String @id @default(uuid())
+  siteId      String
+  sourceToken String
+  kind        AssetKind
+  storageKey  String
+  mime        String?
+  size        Int?
+
+  site      Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([siteId, sourceToken, kind])
+}
+
+model AuditLog {
+  id          String @id @default(uuid())
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String
+  metaJson    Json?
+
+  actor     AdminUser? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+}
