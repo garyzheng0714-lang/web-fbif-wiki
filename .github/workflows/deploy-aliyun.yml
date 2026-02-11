@@ -44,10 +44,6 @@ jobs:
             --exclude=".github" \
             --exclude="release.tgz" \
             --exclude="./release.tgz" \
-            --exclude="./node_modules" \
-            --exclude="./node_modules" \
-            --exclude="./.env" \
-            --exclude="./.env.*" \
             --exclude="./.env" \
             --exclude="./.env.*" \
             --exclude=".local-stack" \
@@ -161,9 +157,10 @@ jobs:
             mkdir -p "${RELEASE_DIR}"
 
             tar -xzf /tmp/release.tgz -C "${RELEASE_DIR}"
-
-            npm ci --prefix "${RELEASE_DIR}"
-            npx prisma generate --schema "${RELEASE_DIR}/prisma/schema.prisma"
+            if [ ! -d "${RELEASE_DIR}/node_modules" ]; then
+              echo "::error::node_modules missing in release package"
+              exit 1
+            fi
 
             SOURCE_ENV=""
             if [ -f "${CURRENT_LINK}/.env" ]; then
@@ -209,7 +206,10 @@ jobs:
               fi
             done
 
-            npx prisma migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"
+            if ! timeout 120 npx prisma migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"; then
+              echo "::error::prisma migrate deploy failed (or timed out)"
+              exit 1
+            fi
 
             pm2 delete fbif-wiki-web >/dev/null 2>&1 || true
             pm2 start npm --name fbif-wiki-web --cwd "${CURRENT_LINK}" -- start -- --hostname 127.0.0.1 --port 3100
