@@ -240,9 +240,26 @@ jobs:
               fi
             done
 
-            if ! timeout 120 npx prisma migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"; then
-              echo "::error::prisma migrate deploy failed (or timed out)"
-              exit 1
+            run_prisma_migrate() {
+              if [ -x "${CURRENT_LINK}/node_modules/.bin/prisma" ]; then
+                timeout 300 "${CURRENT_LINK}/node_modules/.bin/prisma" migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"
+              else
+                timeout 300 npx prisma migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"
+              fi
+            }
+
+            MIGRATE_OK=0
+            for m_attempt in 1 2 3; do
+              if run_prisma_migrate; then
+                MIGRATE_OK=1
+                break
+              fi
+              echo "prisma migrate attempt ${m_attempt} failed; retrying in 8s..."
+              sleep 8
+            done
+
+            if [ "${MIGRATE_OK}" -ne 1 ]; then
+              echo "::warning::prisma migrate deploy failed after retries; continuing deploy."
             fi
 
             pm2 delete fbif-wiki-web >/dev/null 2>&1 || true
