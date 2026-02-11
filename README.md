@@ -102,6 +102,7 @@ docker compose -f docker-compose.deploy.yml up -d --build
   - URL: `http://<your-domain>/api/feishu/events`
   - 事件: `drive.file.edit_v1`
   - 配置 `FEISHU_VERIFICATION_TOKEN` 与 `FEISHU_ENCRYPT_KEY`（可选签名）
+  - 如果改用长连接：设置 `FEISHU_EVENT_SUBSCRIBE_MODE=longconn`，并在飞书后台把订阅方式切到“长连接”；此时无需配置上述 URL。
 
 快速排错：
 

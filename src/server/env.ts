@@ -33,6 +33,8 @@ const schema = z.object({
   FEISHU_ALLOWED_TENANT_KEY: z.string().optional(),
   FEISHU_VERIFICATION_TOKEN: z.string().optional(),
   FEISHU_ENCRYPT_KEY: z.string().optional(),
+  FEISHU_EVENT_SUBSCRIBE_MODE: z.enum(["webhook", "longconn"]).default("webhook"),
+  FEISHU_LONGCONN_DEBOUNCE_MS: z.coerce.number().int().positive().default(30000),
 });
 
 export const env = schema.parse(process.env);

@@ -13,6 +13,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.58.0",
     "@prisma/client": "^6.19.2",
     "bullmq": "^5.67.3",
     "clsx": "^2.1.1",

@@ -2,6 +2,8 @@ import { Worker } from "bullmq";
 import { prisma } from "@/server/db";
 import { getRedis, getSyncQueue, enqueuePollSync } from "@/server/queue";
 import { runFullSync, runPollSync } from "@/server/sync/sync";
+import { env } from "@/server/env";
+import { startFeishuLongConnection } from "@/server/feishu/longconn";
 
 type SyncJobData = { siteId: string; type: "FULL" | "POLL" };
 
@@ -28,6 +30,10 @@ async function start() {
     // eslint-disable-next-line no-console
     console.error("[worker] job failed", job?.id, err);
   });
+
+  if (env.FEISHU_EVENT_SUBSCRIBE_MODE === "longconn") {
+    await startFeishuLongConnection();
+  }
 
   // Poll loop every 5 minutes.
   setInterval(async () => {
