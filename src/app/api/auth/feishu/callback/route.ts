@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+    const secureCookie = url.protocol === "https:";
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
     const savedState = cookies().get(FEISHU_OAUTH_STATE_COOKIE)?.value;
@@ -70,14 +71,14 @@ export async function GET(req: Request) {
     const res = NextResponse.redirect(new URL("/admin", url.origin));
     res.cookies.set(SESSION_COOKIE_NAME, session, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureCookie,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
     res.cookies.set(FEISHU_OAUTH_STATE_COOKIE, "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureCookie,
       sameSite: "lax",
       path: "/",
       maxAge: 0,
