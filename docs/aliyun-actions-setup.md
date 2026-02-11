@@ -23,7 +23,7 @@
 本地执行：
 
 ```bash
-base64 -i .env | tr -d '\n'
+./scripts/gen_app_env_b64.sh .env
 ```
 
 把输出粘贴到 GitHub Secret `APP_ENV_B64`。
