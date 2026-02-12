@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { assertTenantAllowed } from "@/server/appConfig";
 import { encryptString } from "@/server/crypto";
+import { env } from "@/server/env";
 import {
   exchangeCodeForUserToken,
   getUserInfo,
@@ -15,13 +16,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const secureCookie = url.protocol === "https:";
+    const appBaseUrl = new URL(env.APP_BASE_URL);
+    const secureCookie = appBaseUrl.protocol === "https:";
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
     const savedState = cookies().get(FEISHU_OAUTH_STATE_COOKIE)?.value;
 
     if (!code || !state || !savedState || state !== savedState) {
-      return NextResponse.redirect(new URL("/admin?error=oauth_state", url.origin));
+      return NextResponse.redirect(new URL("/admin?error=oauth_state", appBaseUrl));
     }
 
     const tokenData = await exchangeCodeForUserToken(code);
@@ -68,7 +70,7 @@ export async function GET(req: Request) {
     });
 
     const session = await signSession({ userId: user.id });
-    const res = NextResponse.redirect(new URL("/admin", url.origin));
+    const res = NextResponse.redirect(new URL("/admin", appBaseUrl));
     res.cookies.set(SESSION_COOKIE_NAME, session, {
       httpOnly: true,
       secure: secureCookie,
@@ -87,7 +89,7 @@ export async function GET(req: Request) {
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("feishu callback error", e);
-    const origin = new URL(req.url).origin;
-    return NextResponse.redirect(new URL("/admin?error=oauth_failed", origin));
+    const appBaseUrl = new URL(env.APP_BASE_URL);
+    return NextResponse.redirect(new URL("/admin?error=oauth_failed", appBaseUrl));
   }
 }
