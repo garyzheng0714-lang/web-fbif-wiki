@@ -32,11 +32,16 @@ async function feishuJson<T>(
   if (typeof json.code !== "number" || json.code !== 0) {
     throw new Error(`Feishu API error code=${json.code} msg=${json.msg}`);
   }
-  if (!json.data) {
-    // Some endpoints may return empty data
-    return {} as T;
+  // Some Feishu APIs return payload at top-level (e.g. auth/v3 app_access_token),
+  // while others nest under `data`.
+  if (json.data !== undefined && json.data !== null) {
+    return json.data;
   }
-  return json.data;
+  const { code, msg, data, ...rest } = json as FeishuEnvelope<T> & Record<string, unknown>;
+  void code;
+  void msg;
+  void data;
+  return rest as T;
 }
 
 let appAccessTokenCache:
