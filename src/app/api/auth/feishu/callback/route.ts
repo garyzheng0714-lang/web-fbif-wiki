@@ -30,20 +30,27 @@ export async function GET(req: Request) {
     await assertTenantAllowed(tokenData.tenant_key);
 
     const userInfo = await getUserInfo(tokenData.access_token);
+    const tenantKey = userInfo.tenant_key ?? tokenData.tenant_key;
+    const openId = userInfo.open_id ?? tokenData.open_id;
+    const feishuUserId = userInfo.user_id ?? tokenData.user_id ?? openId;
+    if (!tenantKey || !openId || !feishuUserId) {
+      throw new Error("Missing user identifiers from Feishu OAuth response");
+    }
 
     const user = await prisma.adminUser.upsert({
-      where: { feishuUserId: userInfo.user_id },
+      where: { openId },
       create: {
-        tenantKey: userInfo.tenant_key,
-        feishuUserId: userInfo.user_id,
-        openId: userInfo.open_id,
+        tenantKey,
+        feishuUserId,
+        openId,
         name: userInfo.name,
         avatarUrl: userInfo.avatar_url,
         role: "ADMIN",
       },
       update: {
-        tenantKey: userInfo.tenant_key,
-        openId: userInfo.open_id,
+        tenantKey,
+        feishuUserId,
+        openId,
         name: userInfo.name,
         avatarUrl: userInfo.avatar_url,
       },
@@ -53,11 +60,11 @@ export async function GET(req: Request) {
 
     await prisma.feishuOAuthToken.upsert({
       where: {
-        userId_tenantKey: { userId: user.id, tenantKey: userInfo.tenant_key },
+        userId_tenantKey: { userId: user.id, tenantKey },
       },
       create: {
         userId: user.id,
-        tenantKey: userInfo.tenant_key,
+        tenantKey,
         accessTokenEnc: encryptString(tokenData.access_token),
         refreshTokenEnc: encryptString(tokenData.refresh_token),
         accessTokenExpiresAt,

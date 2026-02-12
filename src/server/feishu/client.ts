@@ -111,7 +111,7 @@ export type FeishuOAuthTokenData = {
   refresh_token: string;
   refresh_expires_in?: number;
   open_id: string;
-  user_id: string;
+  user_id?: string;
   tenant_key: string;
 };
 
@@ -145,8 +145,8 @@ export type FeishuUserInfo = {
   name: string;
   avatar_url?: string;
   open_id: string;
-  user_id: string;
-  tenant_key: string;
+  user_id?: string;
+  tenant_key?: string;
 };
 
 export async function getUserInfo(userAccessToken: string): Promise<FeishuUserInfo> {
