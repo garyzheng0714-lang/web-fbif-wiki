@@ -43,3 +43,5 @@ next-env.d.ts
 backend/server
 backend/tmp/
 .gstack/
+backend/fbif-kb
+backend/fbif-kb-linux
