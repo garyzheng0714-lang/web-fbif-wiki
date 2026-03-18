@@ -11,7 +11,6 @@ import (
 
 	"github.com/garyzheng0714/fbif-kb/internal/config"
 	"github.com/garyzheng0714/fbif-kb/internal/handler"
-	"github.com/garyzheng0714/fbif-kb/internal/imagestore"
 	"github.com/garyzheng0714/fbif-kb/internal/middleware"
 	"github.com/garyzheng0714/fbif-kb/pkg/feishu"
 	"github.com/garyzheng0714/fbif-kb/pkg/volcengine"
@@ -36,11 +35,8 @@ func main() {
 	volcClient := volcengine.NewClient(cfg.VolcBaseURL, cfg.VolcAPIKey, cfg.VolcServiceID)
 	feishuClient := feishu.NewClient(cfg.FeishuAppID, cfg.FeishuAppSecret, cfg.BitableAppToken)
 
-	// Initialize image store
-	imgStore := imagestore.New("./data/images", "/images/")
-
 	// Initialize handlers
-	chatH := handler.NewChatHandler(volcClient, imgStore)
+	chatH := handler.NewChatHandler(volcClient)
 	kbH := handler.NewKnowledgeHandler(feishuClient, cfg.TableKnowledge, cfg.TableYearbook, cfg.TableSpeakers, cfg.TableCompanies)
 
 	// Setup router
@@ -78,9 +74,6 @@ func main() {
 			admin.POST("/knowledge/:id/publish", kbH.PublishKnowledge)
 		}
 	}
-
-	// Serve persisted images
-	r.Static("/images", imgStore.Dir())
 
 	// Serve embedded frontend
 	webSub, _ := fs.Sub(webFS, "web")
