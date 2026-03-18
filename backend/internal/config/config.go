@@ -15,6 +15,15 @@ type Config struct {
 	FeishuAppSecret string
 	BitableAppToken string
 
+	// Bitable Table IDs
+	TableKnowledge string
+	TableYearbook  string
+	TableSpeakers  string
+	TableCompanies string
+
+	// Admin API Key (protects knowledge management endpoints)
+	AdminAPIKey string
+
 	// CORS
 	AllowOrigins string
 }
@@ -28,6 +37,11 @@ func Load() *Config {
 		FeishuAppID:     getEnv("FEISHU_APP_ID", ""),
 		FeishuAppSecret: getEnv("FEISHU_APP_SECRET", ""),
 		BitableAppToken: getEnv("BITABLE_APP_TOKEN", "J63zbS4YUaF78MsQEAdcSjOVnLg"),
+		TableKnowledge:  getEnv("TABLE_KNOWLEDGE", "tblIYdS0iWqJNuXt"),
+		TableYearbook:   getEnv("TABLE_YEARBOOK", "tblZSqPYG0wktKUh"),
+		TableSpeakers:   getEnv("TABLE_SPEAKERS", "tblbPLmFEQdQgadS"),
+		TableCompanies:  getEnv("TABLE_COMPANIES", "tblC8Fc1SBYuwpYB"),
+		AdminAPIKey:     getEnv("ADMIN_API_KEY", ""),
 		AllowOrigins:    getEnv("ALLOW_ORIGINS", "*"),
 	}
 }

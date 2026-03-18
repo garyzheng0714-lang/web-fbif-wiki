@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,25 +10,27 @@ import (
 	"github.com/garyzheng0714/fbif-kb/pkg/feishu"
 )
 
-// Table IDs in the Bitable
-const (
-	TableKnowledge = "tblIYdS0iWqJNuXt"
-	TableYearbook  = "tblZSqPYG0wktKUh"
-	TableSpeakers  = "tblbPLmFEQdQgadS"
-	TableCompanies = "tblC8Fc1SBYuwpYB"
-)
-
 type KnowledgeHandler struct {
-	fs *feishu.Client
+	fs             *feishu.Client
+	tableKnowledge string
+	tableYearbook  string
+	tableSpeakers  string
+	tableCompanies string
 }
 
-func NewKnowledgeHandler(fs *feishu.Client) *KnowledgeHandler {
-	return &KnowledgeHandler{fs: fs}
+func NewKnowledgeHandler(fs *feishu.Client, tableKnowledge, tableYearbook, tableSpeakers, tableCompanies string) *KnowledgeHandler {
+	return &KnowledgeHandler{
+		fs:             fs,
+		tableKnowledge: tableKnowledge,
+		tableYearbook:  tableYearbook,
+		tableSpeakers:  tableSpeakers,
+		tableCompanies: tableCompanies,
+	}
 }
 
 // ListKnowledge handles GET /api/knowledge
 func (h *KnowledgeHandler) ListKnowledge(c *gin.Context) {
-	h.listRecords(c, TableKnowledge)
+	h.listRecords(c, h.tableKnowledge)
 }
 
 // CreateKnowledge handles POST /api/knowledge
@@ -48,9 +51,10 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 		req.Fields["最后更新"] = time.Now().UnixMilli()
 	}
 
-	record, err := h.fs.CreateRecord(TableKnowledge, req.Fields)
+	record, err := h.fs.CreateRecord(h.tableKnowledge, req.Fields)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("knowledge error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
 	c.JSON(http.StatusCreated, record)
@@ -69,9 +73,10 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 
 	req.Fields["最后更新"] = time.Now().UnixMilli()
 
-	record, err := h.fs.UpdateRecord(TableKnowledge, recordID, req.Fields)
+	record, err := h.fs.UpdateRecord(h.tableKnowledge, recordID, req.Fields)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("knowledge error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
 	c.JSON(http.StatusOK, record)
@@ -92,9 +97,10 @@ func (h *KnowledgeHandler) ArchiveKnowledge(c *gin.Context) {
 		"最后更新": time.Now().UnixMilli(),
 	}
 
-	record, err := h.fs.UpdateRecord(TableKnowledge, recordID, fields)
+	record, err := h.fs.UpdateRecord(h.tableKnowledge, recordID, fields)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("knowledge error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
 	c.JSON(http.StatusOK, record)
@@ -107,9 +113,10 @@ func (h *KnowledgeHandler) PublishKnowledge(c *gin.Context) {
 		"状态":   "已发布",
 		"最后更新": time.Now().UnixMilli(),
 	}
-	record, err := h.fs.UpdateRecord(TableKnowledge, recordID, fields)
+	record, err := h.fs.UpdateRecord(h.tableKnowledge, recordID, fields)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("knowledge error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
 	c.JSON(http.StatusOK, record)
@@ -117,24 +124,25 @@ func (h *KnowledgeHandler) PublishKnowledge(c *gin.Context) {
 
 // ListYearbook handles GET /api/yearbook
 func (h *KnowledgeHandler) ListYearbook(c *gin.Context) {
-	h.listRecords(c, TableYearbook)
+	h.listRecords(c, h.tableYearbook)
 }
 
 // ListSpeakers handles GET /api/speakers
 func (h *KnowledgeHandler) ListSpeakers(c *gin.Context) {
-	h.listRecords(c, TableSpeakers)
+	h.listRecords(c, h.tableSpeakers)
 }
 
 // ListCompanies handles GET /api/companies
 func (h *KnowledgeHandler) ListCompanies(c *gin.Context) {
-	h.listRecords(c, TableCompanies)
+	h.listRecords(c, h.tableCompanies)
 }
 
 // ListTables handles GET /api/tables
 func (h *KnowledgeHandler) ListTables(c *gin.Context) {
 	tables, err := h.fs.ListTables()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("knowledge error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"tables": tables})
@@ -150,7 +158,8 @@ func (h *KnowledgeHandler) listRecords(c *gin.Context, tableID string) {
 
 	resp, err := h.fs.ListRecords(tableID, pageSize, pageToken, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("knowledge error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
 	c.JSON(http.StatusOK, resp)

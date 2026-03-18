@@ -7,6 +7,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AdminAuth requires a valid API key in the Authorization header for admin endpoints.
+func AdminAuth(apiKey string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if apiKey == "" {
+			c.Next()
+			return
+		}
+		auth := c.GetHeader("Authorization")
+		if auth != "Bearer "+apiKey {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		c.Next()
+	}
+}
+
 func CORS(allowOrigins string) gin.HandlerFunc {
 	origins := strings.Split(allowOrigins, ",")
 	return func(c *gin.Context) {

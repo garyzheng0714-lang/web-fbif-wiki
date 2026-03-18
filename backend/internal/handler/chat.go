@@ -3,6 +3,7 @@ package handler
 import (
 	"bufio"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -42,7 +43,8 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 
 	resp, err := h.volc.Chat(messages)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("chat error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂时不可用"})
 		return
 	}
 	c.JSON(http.StatusOK, resp)
@@ -51,7 +53,8 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 func (h *ChatHandler) chatStream(c *gin.Context, messages []volcengine.Message) {
 	body, err := h.volc.ChatStream(messages)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("chat stream error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂时不可用"})
 		return
 	}
 	defer body.Close()
