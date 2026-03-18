@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="FBIF食品饮料创新论坛智能助手，回答展会时间、地点、嘉宾、票务等问题">
+<meta property="og:title" content="FBIF 智能助手">
+<meta property="og:description" content="食品饮料创新论坛 · 有问必答">
+<meta name="theme-color" content="#171717">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FBIF 智能助手</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #fafafa;
+  --surface: #fff;
+  --border: #e5e5e5;
+  --text: #171717;
+  --text-secondary: #737373;
+  --accent: #171717;
+  --accent-light: #f5f5f5;
+  --user-bg: #171717;
+  --user-text: #fff;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #991b1b;
+  --radius: 16px;
+  --max-w: 680px;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* Header */
+.header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: relative;
+}
+
+.header-center { text-align: center; }
+
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.header p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.reset-btn {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: none;
+}
+
+.reset-btn:hover { color: var(--text); border-color: var(--accent); }
+.reset-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reset-btn.visible { display: block; }
+
+/* Messages area */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+
+.messages-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+
+/* Welcome */
+.welcome {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-secondary);
+}
+
+.welcome h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.welcome p {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 360px;
+  margin: 0 auto 24px;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.suggestion {
+  font-size: 13px;
+  padding: 10px 16px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.suggestion:hover { background: var(--accent-light); border-color: var(--accent); }
+.suggestion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.suggestion:active { transform: scale(0.97); }
+
+/* Message bubbles */
+.msg {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.msg.user { justify-content: flex-end; }
+
+.msg .bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.msg.user .bubble {
+  background: var(--user-bg);
+  color: var(--user-text);
+  border-bottom-right-radius: 4px;
+}
+
+.msg.assistant .bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+/* Error message styling */
+.msg.error .bubble {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-text);
+  border-bottom-left-radius: 4px;
+  font-size: 14px;
+}
+
+/* Markdown-like rendering in assistant bubbles */
+.msg.assistant .bubble ul,
+.msg.assistant .bubble ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.msg.assistant .bubble li {
+  margin-bottom: 4px;
+}
+
+.msg.assistant .bubble p {
+  margin-bottom: 8px;
+}
+
+.msg.assistant .bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.msg.assistant .bubble strong {
+  font-weight: 600;
+}
+
+/* Typing indicator */
+.typing-wrap {
+  padding: 10px 14px;
+}
+
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.typing .dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite;
+}
+
+.typing .dot:nth-child(2) { animation-delay: 0.2s; }
+.typing .dot:nth-child(3) { animation-delay: 0.4s; }
+
+.typing-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  display: none;
+}
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+/* Input area */
+.input-area {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.input-wrap {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.input-wrap textarea {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  min-height: 44px;
+  max-height: 120px;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.input-wrap textarea:focus { border-color: var(--accent); }
+.input-wrap textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.input-wrap textarea::placeholder { color: var(--text-secondary); }
+
+.send-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.send-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.send-btn:active:not(:disabled) { transform: scale(0.95); }
+.send-btn svg { width: 18px; height: 18px; }
+
+/* Mobile */
+@media (max-width: 480px) {
+  .header { padding: 14px 12px 10px; }
+  .header h1 { font-size: 16px; }
+  .welcome { padding: 32px 16px; }
+  .welcome h2 { font-size: 18px; }
+  .msg .bubble { max-width: 92%; font-size: 14px; padding: 9px 12px; }
+  .suggestion { font-size: 13px; padding: 9px 14px; min-height: 44px; }
+  .reset-btn { padding: 5px 8px; font-size: 11px; right: 12px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header" role="banner">
+  <div class="header-center">
+    <h1>FBIF 智能助手</h1>
+    <p>食品饮料创新论坛 · 有问必答</p>
+  </div>
+  <button class="reset-btn" id="resetBtn" onclick="resetChat()" aria-label="开始新对话">新对话</button>
+</header>
+
+<main class="messages" id="messages" role="log" aria-live="polite" aria-label="对话消息">
+  <div class="messages-inner" id="messagesInner">
+    <div class="welcome" id="welcome">
+      <h2>你好，有什么想了解的？</h2>
+      <p>我是 FBIF 智能助手，可以回答关于展会时间、地点、嘉宾、票务等各类问题</p>
+      <div class="suggestions" role="group" aria-label="推荐问题">
+        <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">FBIF2025什么时候举办？</button>
+        <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">怎么买票？</button>
+        <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">有哪些重磅嘉宾？</button>
+        <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">第一次参加怎么准备？</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="input-area" role="form" aria-label="发送消息">
+  <div class="input-wrap">
+    <textarea id="input" rows="1" placeholder="输入你的问题…" aria-label="输入问题"
+      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="send()" disabled aria-label="发送">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const innerEl = document.getElementById('messagesInner');
+const welcomeEl = document.getElementById('welcome');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+let history = [];
+let loading = false;
+
+inputEl.addEventListener('input', () => {
+  sendBtn.disabled = !inputEl.value.trim() || loading;
+});
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    send();
+  }
+}
+
+function askSuggestion(el) {
+  inputEl.value = el.textContent;
+  sendBtn.disabled = false;
+  send();
+}
+
+function scrollBottom() {
+  requestAnimationFrame(() => {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+}
+
+// Escape HTML to prevent XSS from AI responses
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Simple markdown-like rendering (safe — operates on escaped text)
+function renderMarkdown(text) {
+  const escaped = escapeHtml(text);
+  return escaped
+    // URLs → clickable links (stop at CJK chars, parens, commas)
+    .replace(/(https?:\/\/[^\s<\u4e00-\u9fff\uff00-\uffef\u3000-\u303f，。、；：（）]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:underline">$1</a>')
+    // Bold: **text**
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Bullet lists: lines starting with • or -
+    .replace(/^[•\-]\s+(.+)$/gm, '<li>$1</li>')
+    // Numbered lists: lines starting with N.
+    .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+    // Wrap consecutive <li> in <ul>
+    .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+    // Paragraphs: double newline
+    .replace(/\n\n/g, '</p><p>')
+    // Single newline within paragraph
+    .replace(/\n/g, '<br>')
+    // Wrap in paragraph
+    .replace(/^(.+)/, '<p>$1</p>')
+    // Clean up empty paragraphs
+    .replace(/<p><\/p>/g, '');
+}
+
+function addMessage(role, content, isError) {
+  if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
+  resetBtn.classList.add('visible');
+
+  const div = document.createElement('div');
+  div.className = 'msg ' + (isError ? 'error' : role);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+
+  if (role === 'user') {
+    bubble.textContent = content; // User input: plain text, no HTML
+  } else {
+    // Strip reference/illustration tags before rendering
+    const cleaned = content
+      .replace(/<reference[^>]*><\/reference>/g, '')
+      .replace(/<illustration[^>]*><\/illustration>/g, '');
+    bubble.innerHTML = renderMarkdown(cleaned);
+  }
+
+  div.appendChild(bubble);
+  innerEl.appendChild(div);
+  scrollBottom();
+  return bubble;
+}
+
+let typingTimer = null;
+
+function addTyping() {
+  if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.id = 'typing';
+  div.innerHTML = `<div class="bubble"><div class="typing-wrap">
+    <div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="typing-hint" id="typingHint"></div>
+  </div></div>`;
+  innerEl.appendChild(div);
+  scrollBottom();
+
+  // Show hint after 5 seconds
+  typingTimer = setTimeout(() => {
+    const hint = document.getElementById('typingHint');
+    if (hint) { hint.style.display = 'inline'; hint.textContent = '正在生成回答…'; }
+  }, 5000);
+}
+
+function removeTyping() {
+  if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+  const el = document.getElementById('typing');
+  if (el) el.remove();
+}
+
+function resetChat() {
+  history = [];
+  innerEl.innerHTML = '';
+  resetBtn.classList.remove('visible');
+
+  // Re-create welcome
+  const welcome = document.createElement('div');
+  welcome.className = 'welcome';
+  welcome.id = 'welcome';
+  welcome.innerHTML = `
+    <h2>你好，有什么想了解的？</h2>
+    <p>我是 FBIF 智能助手，可以回答关于展会时间、地点、嘉宾、票务等各类问题</p>
+    <div class="suggestions" role="group" aria-label="推荐问题">
+      <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">FBIF2025什么时候举办？</button>
+      <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">怎么买票？</button>
+      <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">有哪些重磅嘉宾？</button>
+      <button class="suggestion" onclick="askSuggestion(this)" tabindex="0">第一次参加怎么准备？</button>
+    </div>`;
+  innerEl.appendChild(welcome);
+  inputEl.focus();
+}
+
+async function send() {
+  const query = inputEl.value.trim();
+  if (!query || loading) return;
+
+  loading = true;
+  sendBtn.disabled = true;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  addMessage('user', query);
+  addTyping();
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, messages: history, stream: false }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    removeTyping();
+
+    if (!res.ok) {
+      addMessage('assistant', '服务暂时不可用，请稍后再试。', true);
+    } else {
+      const data = await res.json();
+      if (data.data && data.data.generated_answer) {
+        const answer = data.data.generated_answer;
+        addMessage('assistant', answer);
+        history.push({ role: 'user', content: query });
+        history.push({ role: 'assistant', content: answer });
+        if (history.length > 12) history = history.slice(-12);
+      } else if (data.error) {
+        addMessage('assistant', '出了点问题，请换个问题试试。', true);
+      } else {
+        addMessage('assistant', '暂时无法回答这个问题，请尝试换个说法。', true);
+      }
+    }
+  } catch (err) {
+    clearTimeout(timeout);
+    removeTyping();
+    if (err.name === 'AbortError') {
+      addMessage('assistant', '回答超时了，请稍后重试。', true);
+    } else {
+      addMessage('assistant', '网络连接失败，请检查网络后重试。', true);
+    }
+  }
+
+  loading = false;
+  sendBtn.disabled = !inputEl.value.trim();
+  inputEl.focus();
+}
+</script>
+</body>
+</html>
