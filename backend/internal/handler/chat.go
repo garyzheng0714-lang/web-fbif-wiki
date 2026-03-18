@@ -7,15 +7,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/garyzheng0714/fbif-kb/internal/imagestore"
 	"github.com/garyzheng0714/fbif-kb/pkg/volcengine"
 )
 
 type ChatHandler struct {
-	volc *volcengine.Client
+	volc   *volcengine.Client
+	images *imagestore.Store
 }
 
-func NewChatHandler(volc *volcengine.Client) *ChatHandler {
-	return &ChatHandler{volc: volc}
+func NewChatHandler(volc *volcengine.Client, images *imagestore.Store) *ChatHandler {
+	return &ChatHandler{volc: volc, images: images}
 }
 
 type ChatReq struct {
@@ -48,13 +50,18 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Extract image map from result_list chunk attachments
+	// Extract and persist images from result_list chunk attachments
 	if resp.Data != nil {
 		images := make(map[string]string)
 		for _, item := range resp.Data.ResultList {
 			for _, att := range item.ChunkAttachment {
 				if att.Link != "" && (att.Type == "image" || att.Type == "doc_image") {
-					images[item.PointID] = att.Link
+					permanentURL, err := h.images.Persist(att.Link)
+					if err != nil {
+						log.Printf("persist image error (point_id=%s): %v", item.PointID, err)
+						continue
+					}
+					images[item.PointID] = permanentURL
 				}
 			}
 		}

@@ -45,3 +45,4 @@ backend/tmp/
 .gstack/
 backend/fbif-kb
 backend/fbif-kb-linux
+backend/data/
