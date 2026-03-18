@@ -27,10 +27,11 @@ func NewClient(baseURL, apiKey, serviceID string) *Client {
 
 // ChatRequest is the request body for the knowledge service chat API.
 type ChatRequest struct {
-	ServiceResourceID string       `json:"service_resource_id"`
-	Stream            bool         `json:"stream"`
-	Messages          []Message    `json:"messages"`
-	QueryParam        *QueryParam  `json:"query_param,omitempty"`
+	ServiceResourceID string          `json:"service_resource_id"`
+	Stream            bool            `json:"stream"`
+	Messages          []Message       `json:"messages"`
+	QueryParam        *QueryParam     `json:"query_param,omitempty"`
+	PostProcessing    *PostProcessing `json:"post_processing,omitempty"`
 }
 
 type Message struct {
@@ -40,6 +41,10 @@ type Message struct {
 
 type QueryParam struct {
 	DocFilter interface{} `json:"doc_filter,omitempty"`
+}
+
+type PostProcessing struct {
+	GetAttachmentLink bool `json:"get_attachment_link"`
 }
 
 // ChatResponse is the non-streaming response.
@@ -80,6 +85,7 @@ func (c *Client) Chat(messages []Message) (*ChatResponse, error) {
 		ServiceResourceID: c.serviceID,
 		Stream:            false,
 		Messages:          messages,
+		PostProcessing:    &PostProcessing{GetAttachmentLink: true},
 	}
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -121,6 +127,7 @@ func (c *Client) ChatStream(messages []Message) (io.ReadCloser, error) {
 		ServiceResourceID: c.serviceID,
 		Stream:            true,
 		Messages:          messages,
+		PostProcessing:    &PostProcessing{GetAttachmentLink: true},
 	}
 	body, err := json.Marshal(req)
 	if err != nil {
