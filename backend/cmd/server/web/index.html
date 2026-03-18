@@ -215,6 +215,41 @@ body { display: flex; flex-direction: column; }
   font-weight: 600;
 }
 
+/* Images in assistant bubbles */
+.msg.assistant .bubble img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 8px 0;
+  display: block;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.msg.assistant .bubble img:hover {
+  opacity: 0.9;
+}
+
+/* Image lightbox overlay */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: zoom-out;
+  animation: fadeIn 0.15s ease;
+}
+
+.lightbox img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
 /* Typing indicator */
 .typing-wrap {
   padding: 10px 14px;
@@ -429,7 +464,30 @@ function renderMarkdown(text) {
     .replace(/<p><\/p>/g, '');
 }
 
-function addMessage(role, content, isError) {
+// Current image map from the latest API response
+let currentImages = {};
+
+function openLightbox(src) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `<img src="${src}" alt="图片">`;
+  lb.onclick = () => lb.remove();
+  document.body.appendChild(lb);
+}
+
+function renderImages(html, images) {
+  if (!images || Object.keys(images).length === 0) return html;
+  // Replace <illustration data-ref="point_id"></illustration> with <img>
+  return html.replace(/&lt;illustration\s+data-ref=&quot;([^&]+)&quot;&gt;&lt;\/illustration&gt;/g, (match, pointId) => {
+    const url = images[pointId];
+    if (url) {
+      return `<img src="${url}" alt="配图" loading="lazy" onclick="openLightbox(this.src)">`;
+    }
+    return '';
+  });
+}
+
+function addMessage(role, content, isError, images) {
   if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
   resetBtn.classList.add('visible');
 
@@ -440,13 +498,15 @@ function addMessage(role, content, isError) {
   bubble.className = 'bubble';
 
   if (role === 'user') {
-    bubble.textContent = content; // User input: plain text, no HTML
+    bubble.textContent = content;
   } else {
-    // Strip reference/illustration tags before rendering
-    const cleaned = content
-      .replace(/<reference[^>]*><\/reference>/g, '')
-      .replace(/<illustration[^>]*><\/illustration>/g, '');
-    bubble.innerHTML = renderMarkdown(cleaned);
+    // Strip reference tags, keep illustration for image rendering
+    const cleaned = content.replace(/<reference[^>]*><\/reference>/g, '');
+    let rendered = renderMarkdown(cleaned);
+    rendered = renderImages(rendered, images);
+    // Clean up any remaining illustration tags that had no matching image
+    rendered = rendered.replace(/&lt;illustration[^&]*&gt;&lt;\/illustration&gt;/g, '');
+    bubble.innerHTML = rendered;
   }
 
   div.appendChild(bubble);
@@ -535,7 +595,8 @@ async function send() {
       const data = await res.json();
       if (data.data && data.data.generated_answer) {
         const answer = data.data.generated_answer;
-        addMessage('assistant', answer);
+        const images = data.data.images || {};
+        addMessage('assistant', answer, false, images);
         history.push({ role: 'user', content: query });
         history.push({ role: 'assistant', content: answer });
         if (history.length > 12) history = history.slice(-12);

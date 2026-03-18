@@ -50,13 +50,28 @@ type ChatResponse struct {
 }
 
 type ChatData struct {
-	Count          int32           `json:"count"`
-	RewriteQuery   string          `json:"rewrite_query,omitempty"`
-	TokenUsage     json.RawMessage `json:"token_usage,omitempty"`
-	ResultList     json.RawMessage `json:"result_list,omitempty"`
-	GeneratedAnswer string         `json:"generated_answer,omitempty"`
-	ReasoningContent string        `json:"reasoning_content,omitempty"`
-	End             bool           `json:"end,omitempty"`
+	Count            int32              `json:"count"`
+	RewriteQuery     string             `json:"rewrite_query,omitempty"`
+	TokenUsage       json.RawMessage    `json:"token_usage,omitempty"`
+	ResultList       []SearchResultItem `json:"result_list,omitempty"`
+	GeneratedAnswer  string             `json:"generated_answer,omitempty"`
+	ReasoningContent string             `json:"reasoning_content,omitempty"`
+	End              bool               `json:"end,omitempty"`
+	Images           map[string]string  `json:"images,omitempty"` // point_id -> image URL (populated by handler)
+}
+
+type SearchResultItem struct {
+	PointID         string            `json:"point_id"`
+	Content         string            `json:"content"`
+	ChunkType       string            `json:"chunk_type,omitempty"`
+	ChunkAttachment []ChunkAttachment `json:"chunk_attachment,omitempty"`
+}
+
+type ChunkAttachment struct {
+	UUID    string `json:"uuid,omitempty"`
+	Caption string `json:"caption,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Link    string `json:"link,omitempty"`
 }
 
 // Chat sends a non-streaming chat request.

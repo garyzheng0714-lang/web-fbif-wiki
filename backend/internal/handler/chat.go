@@ -47,6 +47,22 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂时不可用"})
 		return
 	}
+
+	// Extract image map from result_list chunk attachments
+	if resp.Data != nil {
+		images := make(map[string]string)
+		for _, item := range resp.Data.ResultList {
+			for _, att := range item.ChunkAttachment {
+				if att.Link != "" && (att.Type == "image" || att.Type == "doc_image") {
+					images[item.PointID] = att.Link
+				}
+			}
+		}
+		if len(images) > 0 {
+			resp.Data.Images = images
+		}
+	}
+
 	c.JSON(http.StatusOK, resp)
 }
 
