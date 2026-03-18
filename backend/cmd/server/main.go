@@ -37,7 +37,7 @@ func main() {
 
 	// Initialize handlers
 	chatH := handler.NewChatHandler(volcClient)
-	kbH := handler.NewKnowledgeHandler(feishuClient)
+	kbH := handler.NewKnowledgeHandler(feishuClient, cfg.TableKnowledge, cfg.TableYearbook, cfg.TableSpeakers, cfg.TableCompanies)
 
 	// Setup router
 	gin.SetMode(gin.ReleaseMode)
@@ -57,16 +57,22 @@ func main() {
 	{
 		api.POST("/chat", chatH.Chat)
 
+		// Public read endpoints
 		api.GET("/knowledge", kbH.ListKnowledge)
-		api.POST("/knowledge", kbH.CreateKnowledge)
-		api.PATCH("/knowledge/:id", kbH.UpdateKnowledge)
-		api.POST("/knowledge/:id/archive", kbH.ArchiveKnowledge)
-		api.POST("/knowledge/:id/publish", kbH.PublishKnowledge)
-
 		api.GET("/yearbook", kbH.ListYearbook)
 		api.GET("/speakers", kbH.ListSpeakers)
 		api.GET("/companies", kbH.ListCompanies)
 		api.GET("/tables", kbH.ListTables)
+
+		// Admin endpoints (require API key)
+		admin := api.Group("")
+		admin.Use(middleware.AdminAuth(cfg.AdminAPIKey))
+		{
+			admin.POST("/knowledge", kbH.CreateKnowledge)
+			admin.PATCH("/knowledge/:id", kbH.UpdateKnowledge)
+			admin.POST("/knowledge/:id/archive", kbH.ArchiveKnowledge)
+			admin.POST("/knowledge/:id/publish", kbH.PublishKnowledge)
+		}
 	}
 
 	// Serve embedded frontend
