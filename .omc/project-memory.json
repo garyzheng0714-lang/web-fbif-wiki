@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1773713080005,
+  "projectRoot": "/Users/simba/local_vibecoding/fbif-wiki",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {},
+  "hotPaths": [
+    {
+      "path": "docs/ai-customer-service-research-report.md",
+      "accessCount": 1,
+      "lastAccessed": 1773717472692,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

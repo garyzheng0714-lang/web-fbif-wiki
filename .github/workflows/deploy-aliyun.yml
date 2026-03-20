@@ -1,0 +1,319 @@
+name: Deploy To Aliyun
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            ./package-lock.json
+            ./package-lock.json
+
+      - name: Build And Test
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Package Release
+        run: |
+          set -euo pipefail
+          rm -f /tmp/release.tgz release.tgz
+          tar -czf /tmp/release.tgz \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude="release.tgz" \
+            --exclude="./release.tgz" \
+            --exclude="./.env" \
+            --exclude="./.env.*" \
+            --exclude=".local-stack" \
+            .
+          cp /tmp/release.tgz release.tgz
+
+      - name: Validate SSH Key
+        env:
+          ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}
+          ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+          ALIYUN_SSH_PORT: ${{ secrets.ALIYUN_SSH_PORT }}
+          ALIYUN_SSH_KEY: ${{ secrets.ALIYUN_SSH_KEY }}
+          ALIYUN_SSH_KEY_B64: ${{ secrets.ALIYUN_SSH_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          HOST="${ALIYUN_HOST:-112.124.103.65}"
+          USER="${ALIYUN_USER:-root}"
+          PORT="${ALIYUN_SSH_PORT:-22}"
+
+          mkdir -p ~/.ssh
+
+          if [ -n "${ALIYUN_SSH_KEY:-}" ]; then
+            KEY_HEAD="$(printf '%s' "${ALIYUN_SSH_KEY}" | head -n 1)"
+            if printf '%s' "${KEY_HEAD}" | grep -qE '^ssh-(ed25519|rsa|dss) '; then
+              echo "::error::ALIYUN_SSH_KEY looks like a public key. Please set private key content."
+              exit 1
+            fi
+
+            RAW_KEY="$(printf '%b' "${ALIYUN_SSH_KEY}" | tr -d '\r')"
+            if printf '%s' "${RAW_KEY}" | grep -q -- '-----BEGIN OPENSSH PRIVATE KEY-----'; then
+              printf '%s\n' "${RAW_KEY}" | awk '
+                /-----BEGIN OPENSSH PRIVATE KEY-----/ {in_key=1}
+                in_key {print}
+                /-----END OPENSSH PRIVATE KEY-----/ {if (in_key) {exit}}
+              ' > ~/.ssh/id_aliyun
+            else
+              printf '%s' "${RAW_KEY}" > ~/.ssh/id_aliyun
+            fi
+          elif [ -n "${ALIYUN_SSH_KEY_B64:-}" ]; then
+            printf '%s' "${ALIYUN_SSH_KEY_B64}" | tr -d '\r\n ' | base64 -d > ~/.ssh/id_aliyun
+          else
+            echo "::error::Missing Actions secret: ALIYUN_SSH_KEY or ALIYUN_SSH_KEY_B64"
+            exit 1
+          fi
+
+          chmod 600 ~/.ssh/id_aliyun
+
+          echo "Runner public ip: $(curl -fsS https://api.ipify.org || echo unknown)"
+          echo "Target SSH endpoint: ${HOST}:${PORT}"
+
+          if ! ssh-keygen -y -f ~/.ssh/id_aliyun >/dev/null 2>/tmp/ssh_key_err.log; then
+            echo "::error::Invalid private key content in Actions secret."
+            cat /tmp/ssh_key_err.log || true
+            exit 1
+          fi
+
+          PROBE_OK=0
+          for attempt in 1 2 3 4; do
+            if ssh \
+              -i ~/.ssh/id_aliyun \
+              -p "${PORT}" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o StrictHostKeyChecking=accept-new \
+              "${USER}@${HOST}" \
+              "echo SSH_OK" >/tmp/ssh_probe_out.log 2>/tmp/ssh_probe_err.log; then
+              PROBE_OK=1
+              break
+            fi
+            echo "SSH probe attempt ${attempt} failed; retrying in 8s..."
+            sleep 8
+          done
+
+          if [ "${PROBE_OK}" -ne 1 ]; then
+            if grep -qi "Permission denied" /tmp/ssh_probe_err.log; then
+              echo "::error::SSH authentication failed. Ensure public key is in ~/.ssh/authorized_keys."
+            elif grep -Eqi "Connection timed out during banner exchange|Connection timed out|No route to host|Connection refused" /tmp/ssh_probe_err.log; then
+              echo "::error::Cannot reach server SSH endpoint from GitHub Actions. Check Aliyun security group/firewall/sshd."
+            else
+              echo "::error::SSH probe failed."
+            fi
+            cat /tmp/ssh_probe_err.log || true
+            exit 1
+          fi
+
+          grep -q "SSH_OK" /tmp/ssh_probe_out.log
+
+      - name: Upload Release To Server
+        env:
+          ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}
+          ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+          ALIYUN_SSH_PORT: ${{ secrets.ALIYUN_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          HOST="${ALIYUN_HOST:-112.124.103.65}"
+          USER="${ALIYUN_USER:-root}"
+          PORT="${ALIYUN_SSH_PORT:-22}"
+
+          UPLOAD_OK=0
+          for attempt in 1 2 3; do
+            if scp \
+              -P "${PORT}" \
+              -i ~/.ssh/id_aliyun \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o StrictHostKeyChecking=accept-new \
+              release.tgz \
+              "${USER}@${HOST}:/tmp/release.tgz"; then
+              UPLOAD_OK=1
+              break
+            fi
+            echo "Release upload attempt ${attempt} failed; retrying in 8s..."
+            sleep 8
+          done
+
+          if [ "${UPLOAD_OK}" -ne 1 ]; then
+            echo "::error::Failed to upload release.tgz to server after retries."
+            exit 1
+          fi
+
+      - name: Deploy On Server
+        env:
+          ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}
+          ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+          ALIYUN_SSH_PORT: ${{ secrets.ALIYUN_SSH_PORT }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+          APP_ENV_B64: ${{ secrets.APP_ENV_B64 }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          HOST="${ALIYUN_HOST:-112.124.103.65}"
+          USER="${ALIYUN_USER:-root}"
+          PORT="${ALIYUN_SSH_PORT:-22}"
+
+          cat > /tmp/remote_deploy.sh <<'REMOTE_SCRIPT'
+            set -euo pipefail
+
+            APP_ROOT="${APP_DIR:-/opt/fbif-wiki}"
+            RELEASES_DIR="${APP_ROOT}/releases"
+            CURRENT_LINK="${APP_ROOT}/current"
+            RELEASE_DIR="${RELEASES_DIR}/${GH_SHA}"
+
+            mkdir -p "${RELEASES_DIR}"
+            rm -rf "${RELEASE_DIR}"
+            mkdir -p "${RELEASE_DIR}"
+
+            tar -xzf /tmp/release.tgz -C "${RELEASE_DIR}"
+            if [ ! -d "${RELEASE_DIR}/node_modules" ]; then
+              echo "::error::node_modules missing in release package"
+              exit 1
+            fi
+
+            SOURCE_ENV=""
+            if [ -f "${CURRENT_LINK}/.env" ]; then
+              SOURCE_ENV="${CURRENT_LINK}/.env"
+            elif [ -f "${APP_ROOT}/.env" ]; then
+              SOURCE_ENV="${APP_ROOT}/.env"
+            fi
+
+            if [ -n "${SOURCE_ENV}" ]; then
+              cp "${SOURCE_ENV}" "${RELEASE_DIR}/.env"
+            elif [ -n "${APP_ENV_B64:-}" ]; then
+              printf '%s' "${APP_ENV_B64}" | tr -d '\r\n ' | base64 -d > "${RELEASE_DIR}/.env"
+            fi
+
+            if [ ! -f "${RELEASE_DIR}/.env" ]; then
+              echo "::error::No .env found on server. Provide APP_ENV_B64 secret or pre-create ${APP_ROOT}/.env"
+              exit 1
+            fi
+
+            ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
+
+            if ! command -v pm2 >/dev/null 2>&1; then
+              npm install -g pm2
+            fi
+
+            if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+              echo "::error::node/npm not found on server PATH"
+              exit 1
+            fi
+
+            if [ -f "${CURRENT_LINK}/.env" ]; then
+              set -a
+              # shellcheck disable=SC1090
+              . "${CURRENT_LINK}/.env"
+              set +a
+            fi
+
+            REQUIRED_VARS="DATABASE_URL REDIS_URL SESSION_SECRET TOKEN_ENCRYPTION_KEY FEISHU_APP_ID FEISHU_APP_SECRET APP_BASE_URL FEISHU_OAUTH_REDIRECT_URI"
+            for key in ${REQUIRED_VARS}; do
+              if [ -z "${!key:-}" ]; then
+                echo "::error::Missing required env var: ${key}"
+                exit 1
+              fi
+            done
+
+            run_prisma_migrate() {
+              if [ -x "${CURRENT_LINK}/node_modules/.bin/prisma" ]; then
+                timeout 300 "${CURRENT_LINK}/node_modules/.bin/prisma" migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"
+              else
+                timeout 300 npx prisma migrate deploy --schema "${CURRENT_LINK}/prisma/schema.prisma"
+              fi
+            }
+
+            MIGRATE_OK=0
+            for m_attempt in 1 2 3; do
+              if run_prisma_migrate; then
+                MIGRATE_OK=1
+                break
+              fi
+              echo "prisma migrate attempt ${m_attempt} failed; retrying in 8s..."
+              sleep 8
+            done
+
+            if [ "${MIGRATE_OK}" -ne 1 ]; then
+              echo "::warning::prisma migrate deploy failed after retries; continuing deploy."
+            fi
+
+            pm2 delete fbif-wiki-web >/dev/null 2>&1 || true
+            pm2 start npm --name fbif-wiki-web --cwd "${CURRENT_LINK}" -- start -- --hostname 127.0.0.1 --port 3100
+
+            pm2 delete fbif-wiki-worker >/dev/null 2>&1 || true
+            pm2 start npm --name fbif-wiki-worker --cwd "${CURRENT_LINK}" -- run worker
+
+            pm2 save
+            pm2 startup systemd -u root --hp /root || true
+
+            if ! curl -fsS "http://127.0.0.1:3100/demo" >/dev/null; then
+              echo "::error::web health check failed, dumping pm2 status/logs"
+              pm2 ls || true
+              pm2 logs fbif-wiki-web --lines 120 --nostream || true
+              exit 1
+            fi
+
+            if ! pm2 jlist | grep -q '"name":"fbif-wiki-worker"'; then
+              echo "::error::worker process not found in pm2 list"
+              pm2 ls || true
+              pm2 logs fbif-wiki-worker --lines 120 --nostream || true
+              exit 1
+            fi
+
+            ls -1dt "${RELEASES_DIR}"/* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+          REMOTE_SCRIPT
+
+          REMOTE_ENV="$(printf \
+            "APP_DIR=%q APP_ENV_B64=%q GH_SHA=%q" \
+            "${APP_DIR:-}" "${APP_ENV_B64:-}" "${GH_SHA}")"
+
+          DEPLOY_OK=0
+          for attempt in 1 2 3; do
+            if ssh \
+              -i ~/.ssh/id_aliyun \
+              -p "${PORT}" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o StrictHostKeyChecking=accept-new \
+              "${USER}@${HOST}" \
+              "${REMOTE_ENV} bash -s" < /tmp/remote_deploy.sh; then
+              DEPLOY_OK=1
+              break
+            fi
+            echo "Remote deploy attempt ${attempt} failed; retrying in 10s..."
+            sleep 10
+          done
+
+          if [ "${DEPLOY_OK}" -ne 1 ]; then
+            echo "::error::Remote deploy failed after retries."
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/id_aliyun /tmp/remote_deploy.sh /tmp/release.tgz release.tgz
