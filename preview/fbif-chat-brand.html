@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FBIF 智能助手 — 品牌蓝版</title>
+  <style>
+    :root {
+      --primary: #005CB2;
+      --primary-soft: #EEF6FF;
+      --primary-hover: #004A8F;
+      --bg: #FFFFFF;
+      --bg-chat: #F8F9FB;
+      --text: #1A1A1A;
+      --text-light: #333333;
+      --text-lighter: #606266;
+      --border: #DCDFE6;
+      --success: #48BB78;
+      --shadow-soft: 0 2px 12px rgba(0, 92, 178, 0.06);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06);
+      --shadow-bubble: 0 8px 30px rgba(0, 92, 178, 0.2);
+      --radius: 20px;
+      --radius-sm: 12px;
+      --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    [data-theme="dark"] {
+      --primary: #3B8CF1;
+      --primary-soft: #1E2A3A;
+      --primary-hover: #5A9FF5;
+      --bg: #1A1F2E;
+      --bg-chat: #141824;
+      --text: #E2E8F0;
+      --text-light: #A0AEC0;
+      --text-lighter: #718096;
+      --border: #2D3748;
+      --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.2);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
+      --shadow-bubble: 0 8px 30px rgba(59, 140, 241, 0.2);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-chat);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: var(--bg);
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header p { font-size: 13px; color: var(--text-lighter); margin-top: 2px; }
+
+    .theme-toggle {
+      padding: 8px 16px;
+      background: var(--primary-soft);
+      border: none;
+      border-radius: 100px;
+      color: var(--primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .theme-toggle:hover { background: var(--primary); color: white; }
+
+    .mode-selector {
+      background: var(--bg);
+      padding: 16px 24px;
+      display: flex;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mode-btn {
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      background: var(--bg);
+      color: var(--text-lighter);
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .mode-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .mode-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 3px;
+      height: 16px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    .chat-wrapper {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .chat-window {
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: 0.3s ease;
+    }
+
+    .chat-window.fullscreen { width: 100%; max-width: 720px; height: 580px; }
+    .chat-window.sidebar { width: 380px; height: 580px; }
+    .chat-window.bubble { width: 360px; height: 500px; }
+
+    .chat-header {
+      padding: 16px 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .chat-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      object-fit: cover;
+      background: var(--primary-soft);
+    }
+
+    .chat-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .chat-status {
+      font-size: 12px;
+      color: var(--text-lighter);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .online-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .header-btn {
+      width: 32px;
+      height: 32px;
+      background: var(--bg-chat);
+      border: none;
+      border-radius: 8px;
+      color: var(--text-lighter);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s ease;
+    }
+
+    .header-btn:hover { background: var(--primary-soft); color: var(--primary); }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      background: var(--bg-chat);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .message {
+      display: flex;
+      gap: 10px;
+      max-width: 82%;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--primary-soft);
+    }
+
+    .message.user .message-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .message-bubble {
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .message.ai .message-bubble {
+      background: var(--bg);
+      color: var(--text);
+      box-shadow: var(--shadow-soft);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.user .message-bubble {
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .wechat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-top: 10px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .wechat-card:hover {
+      box-shadow: var(--shadow-card);
+      transform: translateY(-1px);
+    }
+
+    .wechat-card-content {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .wechat-card-thumb {
+      width: 80px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--primary-soft), var(--bg-chat));
+      border-radius: 8px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .wechat-card-info { flex: 1; min-width: 0; }
+
+    .wechat-card-title {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .wechat-card-meta {
+      font-size: 11px;
+      color: var(--text-lighter);
+      margin-top: 4px;
+    }
+
+    .wechat-card-footer {
+      padding: 8px 12px;
+      background: var(--bg-chat);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-input-area {
+      padding: 14px 16px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      background: var(--bg-chat);
+      color: var(--text);
+      line-height: 1.5;
+      transition: 0.2s ease;
+    }
+
+    .chat-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: var(--bg);
+    }
+
+    .chat-input::placeholder { color: var(--text-lighter); }
+
+    .send-btn {
+      width: 40px;
+      height: 40px;
+      background: var(--primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: 0.2s ease;
+    }
+
+    .send-btn:hover { background: var(--primary-hover); transform: scale(1.05); }
+
+    .input-hint {
+      font-size: 11px;
+      color: var(--text-lighter);
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    .bubble-demo {
+      position: relative;
+      width: 280px;
+      height: 360px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 24px;
+      gap: 12px;
+    }
+
+    .bubble-hint {
+      font-size: 12px;
+      color: var(--text-lighter);
+      text-align: center;
+    }
+
+    .bubble-button {
+      width: 60px;
+      height: 60px;
+      background: var(--primary);
+      border-radius: 50%;
+      box-shadow: var(--shadow-bubble);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: 0.2s ease;
+      position: relative;
+    }
+
+    .bubble-button:hover {
+      transform: scale(1.08);
+      box-shadow: 0 12px 40px rgba(0, 92, 178, 0.3);
+    }
+
+    .bubble-button img {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+    }
+
+    .bubble-badge {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      background: #FC8181;
+      border-radius: 10px;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg);
+    }
+
+    .palette { margin-top: 40px; }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .color-card {
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .color-swatch {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    .color-info { padding: 10px 12px; }
+    .color-name { font-size: 13px; font-weight: 600; }
+    .color-hex { font-size: 11px; color: var(--text-lighter); font-family: monospace; }
+
+    .components { margin-top: 40px; }
+
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .component-card {
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .component-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .demo-btn {
+      padding: 8px 18px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s ease;
+      border: none;
+    }
+
+    .demo-btn.primary { background: var(--primary); color: white; }
+    .demo-btn.primary:hover { background: var(--primary-hover); }
+    .demo-btn.secondary { background: var(--primary-soft); color: var(--primary); }
+    .demo-btn.secondary:hover { background: var(--primary); color: white; }
+    .demo-btn.ghost { background: transparent; color: var(--primary); border: 1px solid var(--border); }
+    .demo-btn.ghost:hover { border-color: var(--primary); background: var(--primary-soft); }
+
+    .tag-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .demo-tag {
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .demo-tag.blue { background: var(--primary-soft); color: var(--primary); }
+    .demo-tag.green { background: #C6F6D5; color: #276749; }
+    .demo-tag.orange { background: #FEFCBF; color: #975A16; }
+
+    [data-theme="dark"] .demo-tag.green { background: #22543D; color: #9AE6B4; }
+    [data-theme="dark"] .demo-tag.orange { background: #744210; color: #FAF089; }
+
+    .input-demo {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--bg-chat);
+      color: var(--text);
+    }
+
+    .input-demo:focus { outline: none; border-color: var(--primary); }
+
+    .alert-demo {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-demo.info { background: var(--primary-soft); color: var(--primary); }
+    .alert-demo.success { background: #C6F6D5; color: #276749; }
+    [data-theme="dark"] .alert-demo.success { background: #22543D; color: #9AE6B4; }
+
+    .typing-indicator {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .typing-dots {
+      background: var(--bg);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border-bottom-left-radius: 4px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      gap: 4px;
+    }
+
+    .typing-dots span {
+      width: 8px;
+      height: 8px;
+      background: var(--text-lighter);
+      border-radius: 50%;
+      animation: typing 1.4s infinite ease-in-out;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .message, .wechat-card, .bubble-button, .send-btn, .theme-toggle, .mode-btn, .header-btn {
+        animation: none !important;
+        transition: none !important;
+      }
+      .typing-dots span { animation: none !important; }
+    }
+
+    @media (max-width: 768px) {
+      .header { padding: 16px; flex-direction: column; gap: 12px; align-items: flex-start; }
+      .mode-selector { padding: 12px 16px; overflow-x: auto; }
+      .container { padding: 20px 16px; }
+      .chat-wrapper { flex-direction: column; }
+      .chat-window.sidebar, .chat-window.bubble { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>FBIF 智能助手</h1>
+      <p>品牌蓝 #005CB2 · FoodTalks 风格</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">切换主题</button>
+  </header>
+
+  <div class="mode-selector">
+    <button class="mode-btn active" onclick="switchMode('bubble')">气泡</button>
+    <button class="mode-btn" onclick="switchMode('sidebar')">侧边栏</button>
+    <button class="mode-btn" onclick="switchMode('fullscreen')">全屏</button>
+  </div>
+
+  <main class="container">
+    <section>
+      <h2 class="section-title">对话框预览</h2>
+      <div class="chat-wrapper">
+        <div class="chat-window bubble" id="chatWindow">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <img class="chat-avatar" src="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" alt="FBIF">
+              <div>
+                <div class="chat-title">FBIF 智能助手</div>
+                <div class="chat-status">
+                  <span class="online-dot"></span>
+                  在线
+                </div>
+              </div>
+            </div>
+            <div class="header-actions" id="headerActions" style="display: none;">
+              <button class="header-btn" title="缩小">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="messages">
+            <div class="message ai">
+              <img class="message-avatar" src="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" alt="FBIF">
+              <div class="message-bubble">
+                嗨！我是 FBIF 的小助手 🙋‍♀️ 有啥想了解的尽管问我，展会信息、行业资讯、公众号文章我都能帮你找～
+              </div>
+            </div>
+
+            <div class="message user">
+              <div class="message-avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </div>
+              <div class="message-bubble">FBIF2026 有哪些展商呀？</div>
+            </div>
+
+            <div class="message ai">
+              <img class="message-avatar" src="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" alt="FBIF">
+              <div class="message-bubble">
+                今年有 600+ 展商参展哦！覆盖乳品、饮料、零食、调味品等品类。我找了篇详细介绍，你可以看看
+                <div class="wechat-card">
+                  <div class="wechat-card-content">
+                    <div class="wechat-card-thumb">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    </div>
+                    <div class="wechat-card-info">
+                      <div class="wechat-card-title">FBIF2026 参展商名录抢先看！600+ 品牌齐聚上海</div>
+                      <div class="wechat-card-meta">FBIF食品饮料创新 · 2026-03-15</div>
+                    </div>
+                  </div>
+                  <div class="wechat-card-footer">
+                    <span>查看详情</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="message user">
+              <div class="message-avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </div>
+              <div class="message-bubble">怎么买门票？</div>
+            </div>
+
+            <div class="message ai">
+              <img class="message-avatar" src="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" alt="FBIF">
+              <div class="message-bubble">
+                展览门票可以免费预约哦！论坛门票有几种选择：<br><br>
+                🎫 论坛票 — 含全体大会 + 11 个分论坛<br>
+                🎫 展览票 — 免费预约<br>
+                🎫 VIP 票 — 含晚宴 + 专属导览
+              </div>
+            </div>
+
+            <div class="typing-indicator">
+              <img class="message-avatar" src="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" alt="FBIF">
+              <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+            <div class="input-wrapper">
+              <textarea class="chat-input" rows="1" placeholder="说点什么..."></textarea>
+              <button class="send-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+            <div class="input-hint">Enter 发送 · Shift+Enter 换行</div>
+          </div>
+        </div>
+
+        <div class="bubble-demo" id="bubbleDemo">
+          <div class="bubble-hint">页面右下角悬浮气泡</div>
+          <div class="bubble-button">
+            <img src="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" alt="FBIF">
+            <span class="bubble-badge">1</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="palette">
+      <h2 class="section-title">品牌色彩</h2>
+      <div class="color-grid">
+        <div class="color-card">
+          <div class="color-swatch" style="background: #005CB2; color: white;">#005CB2</div>
+          <div class="color-info"><div class="color-name">品牌蓝</div><div class="color-hex">FoodTalks 主色</div></div>
+        </div>
+        <div class="color-card">
+          <div class="color-swatch" style="background: #EEF6FF; color: #005CB2;">#EEF6FF</div>
+          <div class="color-info"><div class="color-name">浅蓝底</div><div class="color-hex">标签/背景</div></div>
+        </div>
+        <div class="color-card">
+          <div class="color-swatch" style="background: #01396A; color: white;">#01396A</div>
+          <div class="color-info"><div class="color-name">深蓝</div><div class="color-hex">标题/强调</div></div>
+        </div>
+        <div class="color-card">
+          <div class="color-swatch" style="background: #1A1A1A; color: white;">#1A1A1A</div>
+          <div class="color-info"><div class="color-name">主文字</div><div class="color-hex">深灰</div></div>
+        </div>
+        <div class="color-card">
+          <div class="color-swatch" style="background: #48BB78; color: white;">#48BB78</div>
+          <div class="color-info"><div class="color-name">在线/成功</div><div class="color-hex">绿色</div></div>
+        </div>
+        <div class="color-card">
+          <div class="color-swatch" style="background: #FCC800; color: #1A1A1A;">#FCC800</div>
+          <div class="color-info"><div class="color-name">金色</div><div class="color-hex">CTA/强调</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="components">
+      <h2 class="section-title">组件</h2>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="component-title">按钮（胶囊形）</div>
+          <div class="btn-row">
+            <button class="demo-btn primary">主要</button>
+            <button class="demo-btn secondary">次要</button>
+            <button class="demo-btn ghost">幽灵</button>
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-title">标签</div>
+          <div class="tag-row">
+            <span class="demo-tag blue">FBIF2026</span>
+            <span class="demo-tag green">在线</span>
+            <span class="demo-tag orange">热门</span>
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-title">输入框</div>
+          <input type="text" class="input-demo" placeholder="输入你的问题...">
+        </div>
+        <div class="component-card">
+          <div class="component-title">提示</div>
+          <div class="alert-demo info">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            正在搜索相关信息...
+          </div>
+          <div class="alert-demo success" style="margin-top: 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            找到 3 篇文章
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const body = document.body;
+      body.setAttribute('data-theme', body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    }
+
+    function switchMode(mode) {
+      const chatWindow = document.getElementById('chatWindow');
+      const bubbleDemo = document.getElementById('bubbleDemo');
+      const headerActions = document.getElementById('headerActions');
+      
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      chatWindow.className = 'chat-window ' + mode;
+      bubbleDemo.style.display = mode === 'bubble' ? 'flex' : 'none';
+      
+      // 只在气泡模式显示缩小按钮
+      headerActions.style.display = mode === 'bubble' ? 'flex' : 'none';
+    }
+
+    document.querySelector('.chat-input').addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+  </script>
+</body>
+</html>
