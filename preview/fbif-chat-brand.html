@@ -648,7 +648,7 @@
         const resp = await fetch("/api/health");
         const data = await resp.json();
         if (!data.configured) {
-          setNotice("知识库未配置：请设置 VOLC_API_KEY 和 VOLC_SERVICE_RESOURCE_ID 环境变量后重启服务。", "error");
+          setNotice("AI 后端未配置：请在 .env 中设置 COZE_API_KEY + COZE_BOT_ID 后重启服务。", "error");
           sendBtnEl.disabled = true;
         }
       } catch (_) {
@@ -668,5 +668,6 @@
 
     bootstrap();
   </script>
+
 </body>
 </html>

@@ -19,6 +19,7 @@ const (
 	defaultListenPort       = "5173"
 	defaultKnowledgeBaseURL = "https://api-knowledgebase.mlp.cn-beijing.volces.com"
 	serviceChatPath         = "/api/knowledge/service/chat"
+	cozeChatURL             = "https://api.coze.cn/v3/chat"
 	maxRequestBodyBytes     = 1 << 20 // 1 MB
 	maxScannerTokenBytes    = 2 << 20 // 2 MB
 )
@@ -29,8 +30,12 @@ type config struct {
 	KnowledgeBaseURL  string
 	APIKey            string
 	ServiceResourceID string
+	CozeAPIKey        string
+	CozeBotID         string
 	UpstreamTimeout   time.Duration
 }
+
+// ── Volc types ──────────────────────────────────────────────────────────────
 
 type chatRequest struct {
 	Message    string       `json:"message"`
@@ -70,6 +75,29 @@ type serviceChatRespData struct {
 	End            bool   `json:"end,omitempty"`
 }
 
+// ── Coze types ───────────────────────────────────────────────────────────────
+
+type cozeMessage struct {
+	Role        string `json:"role"`
+	Content     string `json:"content"`
+	ContentType string `json:"content_type"`
+}
+
+type cozeChatRequest struct {
+	BotID              string        `json:"bot_id"`
+	UserID             string        `json:"user_id"`
+	Stream             bool          `json:"stream"`
+	AutoSaveHistory    bool          `json:"auto_save_history"`
+	AdditionalMessages []cozeMessage `json:"additional_messages"`
+}
+
+type cozeDeltaData struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
 func main() {
 	cfg := loadConfig()
 	client := &http.Client{Timeout: cfg.UpstreamTimeout}
@@ -82,8 +110,10 @@ func main() {
 	}
 
 	log.Printf("FBIF wiki server running at http://%s", addr)
-	if cfg.APIKey == "" || cfg.ServiceResourceID == "" {
-		log.Printf("warning: VOLC_API_KEY or VOLC_SERVICE_RESOURCE_ID is empty; /api/chat/stream will return config errors")
+	if cfg.CozeAPIKey != "" {
+		log.Printf("using Coze API (bot_id=%s)", cfg.CozeBotID)
+	} else if cfg.APIKey == "" || cfg.ServiceResourceID == "" {
+		log.Printf("warning: no AI backend configured; set COZE_API_KEY+COZE_BOT_ID or VOLC_API_KEY+VOLC_SERVICE_RESOURCE_ID")
 	}
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -96,10 +126,11 @@ func newMux(cfg config, client *http.Client) *http.ServeMux {
 	fileServer := http.FileServer(http.Dir("."))
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, _ *http.Request) {
-		configured := cfg.APIKey != "" && cfg.ServiceResourceID != ""
+		cozeConfigured := cfg.CozeAPIKey != "" && cfg.CozeBotID != ""
+		volcConfigured := cfg.APIKey != "" && cfg.ServiceResourceID != ""
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"status":     "ok",
-			"configured": configured,
+			"configured": cozeConfigured || volcConfigured,
 		})
 	})
 
@@ -118,16 +149,11 @@ func newMux(cfg config, client *http.Client) *http.ServeMux {
 	return mux
 }
 
+// ── Chat handler ─────────────────────────────────────────────────────────────
+
 func handleChatStream(w http.ResponseWriter, r *http.Request, cfg config, client *http.Client) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
-		return
-	}
-
-	if cfg.APIKey == "" || cfg.ServiceResourceID == "" {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "missing VOLC_API_KEY or VOLC_SERVICE_RESOURCE_ID",
-		})
 		return
 	}
 
@@ -141,6 +167,157 @@ func handleChatStream(w http.ResponseWriter, r *http.Request, cfg config, client
 	userMessage := strings.TrimSpace(input.Message)
 	if userMessage == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "message is required"})
+		return
+	}
+
+	if cfg.CozeAPIKey != "" {
+		handleCozeStream(w, r, input, userMessage, cfg, client)
+	} else {
+		handleVolcStream(w, r, input, userMessage, cfg, client)
+	}
+}
+
+// ── Coze ─────────────────────────────────────────────────────────────────────
+
+func handleCozeStream(w http.ResponseWriter, r *http.Request, input chatRequest, userMessage string, cfg config, client *http.Client) {
+	messages := buildCozeMessages(input.History, userMessage)
+	upstreamReq := cozeChatRequest{
+		BotID:              cfg.CozeBotID,
+		UserID:             "fbif-user",
+		Stream:             true,
+		AutoSaveHistory:    false,
+		AdditionalMessages: messages,
+	}
+
+	body, err := json.Marshal(upstreamReq)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to marshal request"})
+		return
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, cozeChatURL, bytes.NewReader(body))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create request"})
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+cfg.CozeAPIKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("coze request failed: %v", err)
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "coze request failed"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		upstreamBody, _ := io.ReadAll(io.LimitReader(resp.Body, 8*1024))
+		writeJSON(w, http.StatusBadGateway, map[string]string{
+			"error":  "coze returned error",
+			"detail": strings.TrimSpace(string(upstreamBody)),
+		})
+		return
+	}
+
+	if err := streamCozeResponse(w, resp.Body); err != nil {
+		log.Printf("coze stream error: %v", err)
+	}
+}
+
+func buildCozeMessages(history []chatRecord, userMessage string) []cozeMessage {
+	msgs := make([]cozeMessage, 0, len(history)+1)
+	for _, item := range history {
+		role := strings.TrimSpace(strings.ToLower(item.Role))
+		if role != "user" && role != "assistant" {
+			continue
+		}
+		content := strings.TrimSpace(item.Content)
+		if content == "" {
+			continue
+		}
+		msgs = append(msgs, cozeMessage{Role: role, Content: content, ContentType: "text"})
+	}
+	msgs = append(msgs, cozeMessage{Role: "user", Content: strings.TrimSpace(userMessage), ContentType: "text"})
+	return msgs
+}
+
+func streamCozeResponse(w http.ResponseWriter, upstream io.Reader) error {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return errors.New("streaming unsupported by response writer")
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	scanner := bufio.NewScanner(upstream)
+	scanner.Split(scanDoubleCRLF)
+	scanner.Buffer(make([]byte, 0, 128*1024), maxScannerTokenBytes)
+
+	var finalAnswer string
+
+	for scanner.Scan() {
+		frame := scanner.Text()
+		eventType, payload := extractSSEFrame(frame)
+
+		if payload == "" || payload == "[DONE]" {
+			if payload == "[DONE]" {
+				break
+			}
+			continue
+		}
+
+		switch eventType {
+		case "conversation.message.delta":
+			var msg cozeDeltaData
+			if err := json.Unmarshal([]byte(payload), &msg); err != nil {
+				continue
+			}
+			if msg.Type == "answer" && msg.Content != "" {
+				if err := writeSSE(w, "token", map[string]string{"token": msg.Content}); err != nil {
+					return err
+				}
+				flusher.Flush()
+			}
+
+		case "conversation.message.completed":
+			var msg cozeDeltaData
+			if err := json.Unmarshal([]byte(payload), &msg); err != nil {
+				continue
+			}
+			if msg.Type == "answer" {
+				finalAnswer = msg.Content
+			}
+
+		case "conversation.chat.failed":
+			_ = writeSSE(w, "error", map[string]string{"error": "coze chat failed"})
+			flusher.Flush()
+			return errors.New("coze chat failed")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		_ = writeSSE(w, "error", map[string]string{"error": "upstream stream interrupted"})
+		flusher.Flush()
+		return err
+	}
+
+	if err := writeSSE(w, "done", map[string]string{"answer": finalAnswer}); err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
+}
+
+// ── Volc ─────────────────────────────────────────────────────────────────────
+
+func handleVolcStream(w http.ResponseWriter, r *http.Request, input chatRequest, userMessage string, cfg config, client *http.Client) {
+	if cfg.APIKey == "" || cfg.ServiceResourceID == "" {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "no AI backend configured; set COZE_API_KEY+COZE_BOT_ID or VOLC_API_KEY+VOLC_SERVICE_RESOURCE_ID",
+		})
 		return
 	}
 
@@ -282,6 +459,8 @@ func normalizeMessages(history []chatRecord, userMessage string) []messageParam 
 	return messages
 }
 
+// ── SSE helpers ───────────────────────────────────────────────────────────────
+
 // scanDoubleCRLF is a bufio.SplitFunc that splits stream blocks by empty line.
 func scanDoubleCRLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if i := bytes.Index(data, []byte("\r\n\r\n")); i >= 0 {
@@ -296,18 +475,25 @@ func scanDoubleCRLF(data []byte, atEOF bool) (advance int, token []byte, err err
 	return 0, nil, nil
 }
 
-func extractDataPayload(frame string) string {
-	normalized := strings.ReplaceAll(frame, "\r\n", "\n")
-	lines := strings.Split(normalized, "\n")
-	payloadLines := make([]string, 0, 2)
-	for _, line := range lines {
+// extractSSEFrame returns the event type and data payload from a raw SSE frame.
+func extractSSEFrame(frame string) (event, data string) {
+	event = "message"
+	var dataLines []string
+	for _, line := range strings.Split(strings.ReplaceAll(frame, "\r\n", "\n"), "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "data:") {
-			payloadLines = append(payloadLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		if strings.HasPrefix(line, "event:") {
+			event = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+		} else if strings.HasPrefix(line, "data:") {
+			dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
 		}
 	}
+	return event, strings.TrimSpace(strings.Join(dataLines, "\n"))
+}
 
-	return strings.TrimSpace(strings.Join(payloadLines, "\n"))
+// extractDataPayload returns only the data payload (used by Volc handler).
+func extractDataPayload(frame string) string {
+	_, data := extractSSEFrame(frame)
+	return data
 }
 
 func writeSSE(w http.ResponseWriter, event string, payload interface{}) error {
@@ -331,6 +517,8 @@ func writeJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(payload)
 }
+
+// ── Config ────────────────────────────────────────────────────────────────────
 
 func loadConfig() config {
 	host := strings.TrimSpace(os.Getenv("HOST"))
@@ -361,6 +549,8 @@ func loadConfig() config {
 		KnowledgeBaseURL:  kbURL,
 		APIKey:            strings.TrimSpace(os.Getenv("VOLC_API_KEY")),
 		ServiceResourceID: strings.TrimSpace(os.Getenv("VOLC_SERVICE_RESOURCE_ID")),
+		CozeAPIKey:        strings.TrimSpace(os.Getenv("COZE_API_KEY")),
+		CozeBotID:         strings.TrimSpace(os.Getenv("COZE_BOT_ID")),
 		UpstreamTimeout:   timeout,
 	}
 }
