@@ -15,7 +15,12 @@ if [[ ! -f "$ROOT_DIR/$PAGE" ]]; then
 fi
 
 URL="http://${HOST}:${PORT}/${PAGE}"
-SERVER_CMD=(python3 -m http.server "$PORT" --bind "$HOST" --directory "$ROOT_DIR")
+SERVER_CMD=(go run ./cmd/server)
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "Missing Go runtime. Please install Go 1.26+ first." >&2
+  exit 1
+fi
 
 is_running() {
   if [[ ! -f "$PID_FILE" ]]; then
@@ -61,9 +66,12 @@ if [[ "$MODE" == "--daemon" ]]; then
     echo "Preview URL: ${URL}"
     exit 0
   fi
-  nohup "${SERVER_CMD[@]}" >"$LOG_FILE" 2>&1 &
-  echo "$!" > "$PID_FILE"
-  echo "Preview server started in background (pid: $!)"
+  (
+    cd "$ROOT_DIR"
+    nohup env HOST="$HOST" PORT="$PORT" "${SERVER_CMD[@]}" >"$LOG_FILE" 2>&1 &
+    echo "$!" > "$PID_FILE"
+  )
+  echo "Preview server started in background (pid: $(cat "$PID_FILE"))"
   echo "Preview URL: ${URL}"
   echo "Log file: ${LOG_FILE}"
   if command -v open >/dev/null 2>&1; then
@@ -72,7 +80,7 @@ if [[ "$MODE" == "--daemon" ]]; then
   exit 0
 fi
 
-echo "Starting static server at ${HOST}:${PORT}"
+echo "Starting Go server at ${HOST}:${PORT}"
 echo "Preview URL: ${URL}"
 
 if command -v open >/dev/null 2>&1; then
@@ -80,4 +88,5 @@ if command -v open >/dev/null 2>&1; then
   open "$URL" >/dev/null 2>&1 || true
 fi
 
-exec "${SERVER_CMD[@]}"
+cd "$ROOT_DIR"
+exec env HOST="$HOST" PORT="$PORT" "${SERVER_CMD[@]}"
