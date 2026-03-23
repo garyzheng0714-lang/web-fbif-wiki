@@ -23,11 +23,7 @@
       --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       min-height: 100vh;
@@ -43,49 +39,17 @@
     .page {
       max-width: 980px;
       margin: 0 auto;
-      padding: 36px 16px;
+      padding: 24px 16px;
     }
 
-    .hero {
-      margin-bottom: 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .hero-title {
-      font-size: 28px;
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-      text-wrap: balance;
-    }
-
-    .hero-sub {
-      margin-top: 8px;
-      color: var(--text-sub);
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .status-pill {
-      background: var(--primary-soft);
-      color: var(--primary);
-      border-radius: 999px;
-      padding: 8px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
+    /* ── Chat card ────────────────────────────────────────── */
     .chat-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-xl);
       box-shadow: var(--shadow);
       overflow: hidden;
-      min-height: 74vh;
+      min-height: 88vh;
       display: flex;
       flex-direction: column;
     }
@@ -94,77 +58,81 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 16px 18px;
+      padding: 14px 18px;
       border-bottom: 1px solid var(--border);
       background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
     }
 
     .chat-avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
       object-fit: cover;
+      flex-shrink: 0;
     }
 
-    .chat-title {
-      font-weight: 700;
-      font-size: 16px;
-      line-height: 1.1;
-    }
+    .chat-header-text { display: flex; flex-direction: column; gap: 2px; }
 
-    .chat-subtitle {
-      color: var(--text-sub);
-      font-size: 12px;
-      margin-top: 3px;
-    }
+    .chat-title { font-weight: 700; font-size: 15px; line-height: 1.2; }
 
+    .chat-subtitle { color: var(--text-sub); font-size: 12px; }
+
+    /* ── Messages ─────────────────────────────────────────── */
     .messages {
       flex: 1;
-      padding: 16px;
+      padding: 20px 16px 8px;
       overflow-y: auto;
       background: var(--bg-message);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
     .message {
       max-width: 85%;
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: flex-start;
-      animation: rise 0.16s ease-out;
+      animation: rise 0.18s ease-out;
     }
 
     @keyframes rise {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .message.assistant {
-      align-self: flex-start;
+    .message.assistant { align-self: flex-start; }
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      flex-shrink: 0;
+      overflow: hidden;
     }
 
-    .message.user {
-      align-self: flex-end;
-      flex-direction: row-reverse;
+    .msg-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .msg-avatar.user-avatar {
+      background: linear-gradient(135deg, #005cb2, #1c79d9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
     }
 
     .bubble {
       background: #ffffff;
       border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 10px 12px;
+      border-radius: 14px;
+      padding: 10px 14px;
       font-size: 14px;
-      line-height: 1.65;
-      white-space: normal;
+      line-height: 1.7;
       word-break: break-word;
+      min-width: 36px;
     }
 
     .message.user .bubble {
@@ -173,22 +141,128 @@
       background: linear-gradient(160deg, #005cb2 0%, #1c79d9 100%);
     }
 
-    .message.assistant .bubble.streaming::after {
-      content: "";
+    /* ── Markdown content styles ──────────────────────────── */
+    .bubble p { margin: 0 0 0.5em; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble h1, .bubble h2, .bubble h3, .bubble h4 {
+      font-weight: 700;
+      margin: 0.75em 0 0.35em;
+      line-height: 1.3;
+    }
+    .bubble h1 { font-size: 1.15em; }
+    .bubble h2 { font-size: 1.05em; }
+    .bubble h3 { font-size: 1em; }
+    .bubble ul, .bubble ol { padding-left: 1.4em; margin: 0.3em 0 0.5em; }
+    .bubble li { margin: 0.2em 0; }
+    .bubble code {
+      background: #f0f4fa;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.88em;
+      font-family: "SF Mono", "Fira Code", monospace;
+      color: #1a3c6e;
+    }
+    .bubble pre {
+      background: #f0f4fa;
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      margin: 0.5em 0;
+    }
+    .bubble pre code { background: none; padding: 0; font-size: 0.85em; color: var(--text-main); }
+    .bubble blockquote {
+      border-left: 3px solid #c5daf7;
+      margin: 0.5em 0;
+      padding: 4px 10px;
+      color: var(--text-sub);
+    }
+    .bubble a { color: var(--primary); text-decoration: none; }
+    .bubble a:hover { text-decoration: underline; }
+    .bubble strong { font-weight: 600; }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: 0.75em 0; }
+    .bubble table { border-collapse: collapse; width: 100%; margin: 0.5em 0; font-size: 13px; }
+    .bubble th, .bubble td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
+    .bubble th { background: #f0f4fa; font-weight: 600; }
+
+    /* ── Streaming cursor ─────────────────────────────────── */
+    .streaming-cursor {
       display: inline-block;
-      width: 6px;
+      width: 2px;
       height: 1em;
-      margin-left: 3px;
-      vertical-align: text-bottom;
       background: var(--primary);
-      animation: blink 0.9s steps(1, end) infinite;
+      vertical-align: text-bottom;
+      margin-left: 2px;
+      animation: blink 0.85s steps(1, end) infinite;
     }
 
     @keyframes blink {
-      0%, 50% { opacity: 1; }
+      0%, 50%  { opacity: 1; }
       51%, 100% { opacity: 0; }
     }
 
+    /* ── Link card ────────────────────────────────────────── */
+    a.link-card {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      text-decoration: none !important;
+      color: var(--text-main) !important;
+      background: #fafcff;
+      margin: 6px 0;
+      transition: box-shadow 0.15s ease;
+      max-width: 380px;
+    }
+
+    a.link-card:hover { box-shadow: 0 2px 12px rgba(0, 36, 84, 0.1); }
+
+    .link-card-img {
+      width: 88px;
+      flex-shrink: 0;
+      overflow: hidden;
+      background: #e8eef8;
+    }
+
+    .link-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .link-card-body {
+      padding: 8px 10px;
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .link-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      color: var(--text-main);
+    }
+
+    .link-card-desc {
+      font-size: 11px;
+      color: var(--text-sub);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      line-height: 1.4;
+    }
+
+    .link-card-domain {
+      font-size: 11px;
+      color: var(--primary);
+      margin-top: auto;
+    }
+
+    /* ── Notice ───────────────────────────────────────────── */
     .notice {
       margin: 0 16px 14px;
       border-radius: 10px;
@@ -199,18 +273,35 @@
       border: 1px solid #d8eafe;
     }
 
-    .notice.error {
-      background: #fff3f2;
-      border-color: #ffd8d6;
-      color: var(--error);
+    .notice.error  { background: #fff3f2; border-color: #ffd8d6; color: var(--error); }
+    .notice.success { background: #edf9f1; border-color: #d0efdb; color: var(--success); }
+
+    /* ── Suggestions ──────────────────────────────────────── */
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 0 14px;
     }
 
-    .notice.success {
-      background: #edf9f1;
-      border-color: #d0efdb;
-      color: var(--success);
+    .suggestion-chip {
+      border: 1px solid #c9dcf5;
+      background: #f0f7ff;
+      color: var(--primary);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
     }
 
+    .suggestion-chip:hover {
+      background: var(--primary-soft);
+      border-color: #8fc0f1;
+    }
+
+    /* ── Chat form ────────────────────────────────────────── */
     .chat-form {
       border-top: 1px solid var(--border);
       background: #ffffff;
@@ -233,9 +324,11 @@
       color: var(--text-main);
       font-size: 14px;
       line-height: 1.45;
-      padding: 9px 11px;
+      /* vertically center single-line placeholder */
+      padding: 11px 12px;
       resize: none;
       font-family: inherit;
+      display: block;
     }
 
     .chat-input:focus {
@@ -247,8 +340,8 @@
 
     .send-btn {
       border: 0;
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 11px;
       background: var(--primary);
       color: #ffffff;
@@ -260,26 +353,9 @@
       flex-shrink: 0;
     }
 
-    .send-btn:hover:enabled {
-      transform: translateY(-1px);
-      background: var(--primary-hover);
-    }
-
-    .send-btn:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .send-btn:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
-    }
-
-    .chat-input:focus-visible {
-      border-color: #8fc0f1;
-      box-shadow: 0 0 0 3px rgba(0, 92, 178, 0.15);
-    }
+    .send-btn:hover:enabled { transform: translateY(-1px); background: var(--primary-hover); }
+    .send-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .send-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
     .input-tip {
       font-size: 11px;
@@ -288,37 +364,11 @@
       text-align: center;
     }
 
-    .avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      object-fit: cover;
-      background: #dbe8f8;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      color: #19508e;
-      font-weight: 600;
-    }
-
+    /* ── Responsive ───────────────────────────────────────── */
     @media (max-width: 768px) {
-      .page {
-        padding: 18px 12px;
-      }
-
-      .hero-title {
-        font-size: 22px;
-      }
-
-      .chat-card {
-        min-height: 82vh;
-      }
-
-      .message {
-        max-width: 94%;
-      }
+      .page { padding: 0; }
+      .chat-card { min-height: 100vh; border-radius: 0; border: none; }
+      .message { max-width: 92%; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -331,23 +381,11 @@
 </head>
 <body>
   <main class="page">
-    <section class="hero">
-      <div>
-        <h1 class="hero-title">FBIF 智能助手</h1>
-        <p class="hero-sub">连接火山方舟知识库 · 支持多轮对话与流式输出</p>
-      </div>
-      <div class="status-pill">Live Streaming</div>
-    </section>
-
     <section class="chat-card">
       <header class="chat-header">
-        <img
-          class="chat-avatar"
-          id="headerAvatar"
-          alt="FBIF"
-        >
-        <div>
-          <div class="chat-title">FBIF Knowledge Chat</div>
+        <img class="chat-avatar" id="headerAvatar" alt="FBIF">
+        <div class="chat-header-text">
+          <div class="chat-title">FBIF 智能助手</div>
           <div class="chat-subtitle" id="subtitle">已就绪，等待提问</div>
         </div>
       </header>
@@ -357,49 +395,76 @@
       <div class="notice" id="notice" style="display:none"></div>
 
       <form class="chat-form" id="chatForm">
+        <div class="suggestions" id="suggestions">
+          <button type="button" class="suggestion-chip">FBIF2026 有哪些特色活动？</button>
+          <button type="button" class="suggestion-chip">今年食品饮料有哪些新趋势？</button>
+          <button type="button" class="suggestion-chip">FBIF2026 在哪里举办？</button>
+          <button type="button" class="suggestion-chip">如何参加 FBIF 展览？</button>
+        </div>
         <div class="input-row">
           <textarea
             id="input"
             class="chat-input"
-            placeholder="请输入你的问题，例如：FBIF2026 有哪些展商？"
+            placeholder="请输入你的问题…"
             rows="1"
             required
           ></textarea>
           <button class="send-btn" id="sendBtn" type="submit" aria-label="发送">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
           </button>
         </div>
-        <p class="input-tip">Enter 发送，Shift + Enter 换行</p>
+        <p class="input-tip">Enter 发送 · Shift + Enter 换行</p>
       </form>
     </section>
   </main>
 
+  <!-- marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
   <script>
     const assistantAvatarUrl = "https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png";
 
     const state = {
       history: [],
-      isStreaming: false
+      isStreaming: false,
+      suggestionsHidden: false,
     };
+
+    const messagesEl  = document.getElementById("messages");
+    const noticeEl    = document.getElementById("notice");
+    const subtitleEl  = document.getElementById("subtitle");
+    const inputEl     = document.getElementById("input");
+    const formEl      = document.getElementById("chatForm");
+    const sendBtnEl   = document.getElementById("sendBtn");
+    const suggestionsEl = document.getElementById("suggestions");
 
     document.getElementById("headerAvatar").src = assistantAvatarUrl;
 
-    const messagesEl = document.getElementById("messages");
-    const noticeEl = document.getElementById("notice");
-    const subtitleEl = document.getElementById("subtitle");
-    const inputEl = document.getElementById("input");
-    const formEl = document.getElementById("chatForm");
-    const sendBtnEl = document.getElementById("sendBtn");
+    // ── Suggestions ──────────────────────────────────────────
+    suggestionsEl.querySelectorAll(".suggestion-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        inputEl.value = btn.textContent.trim();
+        autoResizeTextarea();
+        sendMessage();
+      });
+    });
 
+    function hideSuggestions() {
+      if (!state.suggestionsHidden) {
+        state.suggestionsHidden = true;
+        suggestionsEl.style.display = "none";
+      }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────
     function escapeHTML(text) {
-      return text
+      return String(text)
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
-        .replaceAll("\"", "&quot;")
+        .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
     }
 
@@ -409,8 +474,8 @@
         .replace(/<illustration\b[^>]*>[\s\S]*?<\/illustration>/gi, "");
     }
 
-    function formatText(text) {
-      return escapeHTML(stripKBTags(text)).replace(/\n/g, "<br>");
+    function renderMarkdown(text) {
+      return marked.parse(stripKBTags(text), { breaks: true, gfm: true });
     }
 
     let scrollRAF = null;
@@ -424,25 +489,19 @@
     }
 
     function setNotice(text, type = "info") {
-      if (!text) {
-        noticeEl.style.display = "none";
-        return;
-      }
+      if (!text) { noticeEl.style.display = "none"; return; }
       noticeEl.textContent = text;
       noticeEl.className = "notice";
       noticeEl.style.display = "";
-      if (type === "error") {
-        noticeEl.classList.add("error");
-      } else if (type === "success") {
-        noticeEl.classList.add("success");
-      }
+      if (type === "error") noticeEl.classList.add("error");
+      else if (type === "success") noticeEl.classList.add("success");
     }
 
     function setInputEnabled(enabled) {
       state.isStreaming = !enabled;
-      inputEl.disabled = !enabled;
+      inputEl.disabled  = !enabled;
       sendBtnEl.disabled = !enabled;
-      subtitleEl.textContent = enabled ? "已就绪，等待提问" : "知识库回答中...";
+      subtitleEl.textContent = enabled ? "已就绪，等待提问" : "知识库回答中…";
     }
 
     function autoResizeTextarea() {
@@ -450,100 +509,152 @@
       inputEl.style.height = Math.min(inputEl.scrollHeight, 128) + "px";
     }
 
-    function createAvatar(role) {
-      const avatar = document.createElement(role === "assistant" ? "img" : "div");
-      avatar.className = "avatar";
-
+    // ── Message rendering ─────────────────────────────────────
+    function createMsgAvatar(role) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "msg-avatar";
       if (role === "assistant") {
-        avatar.src = assistantAvatarUrl;
-        avatar.alt = "FBIF";
+        const img = document.createElement("img");
+        img.src = assistantAvatarUrl;
+        img.alt = "FBIF";
+        wrapper.appendChild(img);
       } else {
-        avatar.textContent = "我";
+        wrapper.classList.add("user-avatar");
+        wrapper.textContent = "我";
       }
-
-      return avatar;
+      return wrapper;
     }
 
     function appendMessage(role, text, options = {}) {
       const wrapper = document.createElement("div");
       wrapper.className = `message ${role}`;
 
-      const avatar = createAvatar(role);
       const bubble = document.createElement("div");
       bubble.className = "bubble";
-      if (options.streaming) {
-        bubble.classList.add("streaming");
-      }
-      bubble.innerHTML = formatText(text);
 
-      wrapper.appendChild(avatar);
-      wrapper.appendChild(bubble);
-      messagesEl.appendChild(wrapper);
-      scrollToBottom();
-
-      return bubble;
-    }
-
-    function parseSSEChunk(rawChunk) {
-      let event = "message";
-      const dataLines = [];
-
-      for (const line of rawChunk.split("\n")) {
-        if (line.startsWith("event:")) {
-          event = line.slice(6).trim();
-        } else if (line.startsWith("data:")) {
-          dataLines.push(line.slice(5).trim());
+      if (role === "user") {
+        bubble.textContent = text;
+      } else {
+        if (options.streaming) {
+          bubble.innerHTML = renderMarkdown(text) + '<span class="streaming-cursor"></span>';
+        } else {
+          bubble.innerHTML = renderMarkdown(text);
         }
       }
 
-      return {
-        event: event,
-        data: dataLines.join("\n")
-      };
+      wrapper.appendChild(createMsgAvatar(role));
+      wrapper.appendChild(bubble);
+      messagesEl.appendChild(wrapper);
+      scrollToBottom();
+      return bubble;
     }
 
+    // ── Link cards (post-stream) ───────────────────────────────
+    async function postProcessLinks(bubbleEl) {
+      const links = Array.from(bubbleEl.querySelectorAll('a[href^="http"]'));
+      for (const link of links) {
+        const href = link.getAttribute("href");
+        const parent = link.parentElement;
+
+        // Only upgrade standalone links (a <p> that contains just this link)
+        const isStandalone =
+          parent &&
+          parent.tagName === "P" &&
+          parent.children.length === 1 &&
+          parent.textContent.trim() === link.textContent.trim();
+
+        if (!isStandalone) continue;
+
+        try {
+          const resp = await fetch(`/api/unfurl?url=${encodeURIComponent(href)}`);
+          if (!resp.ok) continue;
+          const data = await resp.json();
+          if (!data.title) continue;
+          parent.replaceWith(buildLinkCard(data));
+        } catch (_) {
+          // Keep original link
+        }
+      }
+    }
+
+    function buildLinkCard(data) {
+      const card = document.createElement("a");
+      card.href = data.url;
+      card.target = "_blank";
+      card.rel = "noopener noreferrer";
+      card.className = "link-card";
+
+      let imgHtml = "";
+      if (data.image) {
+        imgHtml = `<div class="link-card-img"><img src="${escapeHTML(data.image)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
+      }
+
+      let descHtml = "";
+      if (data.description) {
+        const desc = data.description.length > 80
+          ? data.description.slice(0, 80) + "…"
+          : data.description;
+        descHtml = `<div class="link-card-desc">${escapeHTML(desc)}</div>`;
+      }
+
+      let domain = data.url;
+      try { domain = new URL(data.url).hostname; } catch (_) {}
+
+      card.innerHTML = `
+        ${imgHtml}
+        <div class="link-card-body">
+          <div class="link-card-title">${escapeHTML(data.title)}</div>
+          ${descHtml}
+          <div class="link-card-domain">${escapeHTML(domain)}</div>
+        </div>`;
+
+      return card;
+    }
+
+    // ── SSE parsing ───────────────────────────────────────────
+    function parseSSEChunk(rawChunk) {
+      let event = "message";
+      const dataLines = [];
+      for (const line of rawChunk.split("\n")) {
+        if (line.startsWith("event:"))      event = line.slice(6).trim();
+        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      return { event, data: dataLines.join("\n") };
+    }
+
+    // ── Streaming ─────────────────────────────────────────────
     async function streamAnswer(message, historySnapshot, assistantBubble) {
       const response = await fetch("/api/chat/stream", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: message,
-          history: historySnapshot
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, history: historySnapshot }),
       });
 
       if (!response.ok) {
         let detail = `HTTP ${response.status}`;
         try {
-          const rawText = await response.text();
-          if (rawText) {
-            try {
-              const errorPayload = JSON.parse(rawText);
-              detail = errorPayload.detail || errorPayload.error || detail;
-            } catch (_) {
-              detail = rawText;
-            }
+          const raw = await response.text();
+          if (raw) {
+            try { const p = JSON.parse(raw); detail = p.detail || p.error || detail; }
+            catch (_) { detail = raw; }
           }
-        } catch (_) { /* ignore */ }
+        } catch (_) {}
         throw new Error(detail);
       }
 
-      if (!response.body) {
-        throw new Error("浏览器不支持流式响应");
-      }
+      if (!response.body) throw new Error("浏览器不支持流式响应");
 
-      const reader = response.body.getReader();
+      const reader  = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
+      let buffer      = "";
       let finalAnswer = "";
-      let renderRAF = null;
+      let renderRAF   = null;
 
       function scheduleRender() {
         if (!renderRAF) {
           renderRAF = requestAnimationFrame(() => {
-            assistantBubble.innerHTML = formatText(finalAnswer);
+            assistantBubble.innerHTML =
+              renderMarkdown(finalAnswer) + '<span class="streaming-cursor"></span>';
             scrollToBottom();
             renderRAF = null;
           });
@@ -551,55 +662,46 @@
       }
 
       while (true) {
-        const result = await reader.read();
-        if (result.done) {
-          break;
-        }
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        buffer += decoder.decode(result.value, { stream: true }).replaceAll("\r\n", "\n");
+        buffer += decoder.decode(value, { stream: true }).replaceAll("\r\n", "\n");
 
-        let separatorIndex = buffer.indexOf("\n\n");
-        while (separatorIndex !== -1) {
-          const rawChunk = buffer.slice(0, separatorIndex).trim();
-          buffer = buffer.slice(separatorIndex + 2);
+        let sep = buffer.indexOf("\n\n");
+        while (sep !== -1) {
+          const rawChunk = buffer.slice(0, sep).trim();
+          buffer = buffer.slice(sep + 2);
 
           if (rawChunk.length > 0) {
             const parsed = parseSSEChunk(rawChunk);
             if (parsed.data) {
               const payload = JSON.parse(parsed.data);
-
               if (parsed.event === "token") {
                 finalAnswer += payload.token || "";
                 scheduleRender();
               }
-
-              if (parsed.event === "error") {
-                throw new Error(payload.error || "知识库服务返回错误");
-              }
-
-              if (parsed.event === "done" && payload.answer) {
-                finalAnswer = payload.answer;
-              }
+              if (parsed.event === "error") throw new Error(payload.error || "知识库服务返回错误");
+              if (parsed.event === "done" && payload.answer) finalAnswer = payload.answer;
             }
           }
 
-          separatorIndex = buffer.indexOf("\n\n");
+          sep = buffer.indexOf("\n\n");
         }
       }
 
-      if (renderRAF) {
-        cancelAnimationFrame(renderRAF);
-      }
-      assistantBubble.innerHTML = formatText(finalAnswer);
+      if (renderRAF) cancelAnimationFrame(renderRAF);
+      // Final render without cursor
+      assistantBubble.innerHTML = renderMarkdown(finalAnswer);
       scrollToBottom();
       return finalAnswer.trim();
     }
 
+    // ── Send ──────────────────────────────────────────────────
     async function sendMessage() {
       const message = inputEl.value.trim();
-      if (!message || state.isStreaming) {
-        return;
-      }
+      if (!message || state.isStreaming) return;
+
+      hideSuggestions();
 
       const historySnapshot = [...state.history];
       appendMessage("user", message);
@@ -614,35 +716,29 @@
       try {
         const answer = await streamAnswer(message, historySnapshot, assistantBubble);
         const safeAnswer = answer || "我暂时没有检索到结果，可以换个问法试试。";
-        assistantBubble.innerHTML = formatText(safeAnswer);
+        assistantBubble.innerHTML = renderMarkdown(safeAnswer);
         state.history.push({ role: "assistant", content: safeAnswer });
         setNotice("");
+        // Async link → card upgrade, don't block re-enable
+        postProcessLinks(assistantBubble);
       } catch (error) {
         const detail = error instanceof Error ? error.message : "未知错误";
-        assistantBubble.innerHTML = formatText(`抱歉，知识库调用失败。\n${detail}`);
+        assistantBubble.innerHTML = renderMarkdown(`抱歉，知识库调用失败。\n\n${detail}`);
         state.history.push({ role: "assistant", content: `调用失败：${detail}` });
         setNotice(`请求失败：${detail}`, "error");
       } finally {
-        assistantBubble.classList.remove("streaming");
         setInputEnabled(true);
         inputEl.focus();
       }
     }
 
-    formEl.addEventListener("submit", async function(event) {
-      event.preventDefault();
-      await sendMessage();
-    });
-
+    formEl.addEventListener("submit", async e => { e.preventDefault(); await sendMessage(); });
     inputEl.addEventListener("input", autoResizeTextarea);
-
-    inputEl.addEventListener("keydown", async function(event) {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        await sendMessage();
-      }
+    inputEl.addEventListener("keydown", async e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); await sendMessage(); }
     });
 
+    // ── Boot ──────────────────────────────────────────────────
     async function checkServerConfig() {
       try {
         const resp = await fetch("/api/health");
@@ -668,6 +764,5 @@
 
     bootstrap();
   </script>
-
 </body>
 </html>

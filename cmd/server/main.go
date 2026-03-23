@@ -3,13 +3,17 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -136,6 +140,11 @@ func newMux(cfg config, client *http.Client) *http.ServeMux {
 
 	mux.HandleFunc("/api/chat/stream", func(w http.ResponseWriter, r *http.Request) {
 		handleChatStream(w, r, cfg, client)
+	})
+
+	unfurlClient := &http.Client{Timeout: 10 * time.Second}
+	mux.HandleFunc("/api/unfurl", func(w http.ResponseWriter, r *http.Request) {
+		handleUnfurl(w, r, unfurlClient)
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -557,4 +566,109 @@ func loadConfig() config {
 
 func joinURL(base string, path string) string {
 	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(path, "/")
+}
+
+// ── Unfurl ────────────────────────────────────────────────────────────────────
+
+type unfurlResult struct {
+	URL         string `json:"url"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Image       string `json:"image"`
+}
+
+func handleUnfurl(w http.ResponseWriter, r *http.Request, client *http.Client) {
+	rawURL := strings.TrimSpace(r.URL.Query().Get("url"))
+	if rawURL == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "url required"})
+		return
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid url"})
+		return
+	}
+
+	if isPrivateHost(parsed.Hostname()) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "disallowed host"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid url"})
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; FBIFBot/1.0)")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "fetch failed"})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "read failed"})
+		return
+	}
+
+	content := string(body)
+	result := unfurlResult{URL: rawURL}
+	result.Title = extractOGMeta(content, "og:title")
+	result.Description = extractOGMeta(content, "og:description")
+	result.Image = extractOGMeta(content, "og:image")
+	if result.Title == "" {
+		result.Title = extractHTMLTitle(content)
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+func extractOGMeta(content, property string) string {
+	prop := regexp.QuoteMeta(property)
+	patterns := []string{
+		`(?i)<meta[^>]+property=["']` + prop + `["'][^>]+content=["']([^"'>]{1,500})["']`,
+		`(?i)<meta[^>]+content=["']([^"'>]{1,500})["'][^>]+property=["']` + prop + `["']`,
+	}
+	for _, pattern := range patterns {
+		if m := regexp.MustCompile(pattern).FindStringSubmatch(content); len(m) > 1 {
+			return html.UnescapeString(strings.TrimSpace(m[1]))
+		}
+	}
+	return ""
+}
+
+func extractHTMLTitle(content string) string {
+	re := regexp.MustCompile(`(?i)<title[^>]*>([^<]{1,200})</title>`)
+	if m := re.FindStringSubmatch(content); len(m) > 1 {
+		return html.UnescapeString(strings.TrimSpace(m[1]))
+	}
+	return ""
+}
+
+func isPrivateHost(host string) bool {
+	lower := strings.ToLower(strings.TrimSpace(host))
+	for _, exact := range []string{"localhost", "127.0.0.1", "::1", "0.0.0.0"} {
+		if lower == exact {
+			return true
+		}
+	}
+	for _, prefix := range []string{
+		"10.", "192.168.",
+		"172.16.", "172.17.", "172.18.", "172.19.", "172.20.",
+		"172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+		"172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+	} {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	return false
 }
