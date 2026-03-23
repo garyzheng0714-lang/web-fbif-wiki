@@ -354,9 +354,7 @@
 
       <div class="messages" id="messages"></div>
 
-      <div class="notice" id="notice">
-        启动前请设置环境变量：VOLC_API_KEY、VOLC_SERVICE_RESOURCE_ID。
-      </div>
+      <div class="notice" id="notice" style="display:none"></div>
 
       <form class="chat-form" id="chatForm">
         <div class="input-row">
@@ -426,8 +424,13 @@
     }
 
     function setNotice(text, type = "info") {
+      if (!text) {
+        noticeEl.style.display = "none";
+        return;
+      }
       noticeEl.textContent = text;
       noticeEl.className = "notice";
+      noticeEl.style.display = "";
       if (type === "error") {
         noticeEl.classList.add("error");
       } else if (type === "success") {
@@ -613,7 +616,7 @@
         const safeAnswer = answer || "我暂时没有检索到结果，可以换个问法试试。";
         assistantBubble.innerHTML = formatText(safeAnswer);
         state.history.push({ role: "assistant", content: safeAnswer });
-        setNotice("已连接知识库服务，正在流式返回答案。", "success");
+        setNotice("");
       } catch (error) {
         const detail = error instanceof Error ? error.message : "未知错误";
         assistantBubble.innerHTML = formatText(`抱歉，知识库调用失败。\n${detail}`);
@@ -640,12 +643,27 @@
       }
     });
 
+    async function checkServerConfig() {
+      try {
+        const resp = await fetch("/api/health");
+        const data = await resp.json();
+        if (!data.configured) {
+          setNotice("知识库未配置：请设置 VOLC_API_KEY 和 VOLC_SERVICE_RESOURCE_ID 环境变量后重启服务。", "error");
+          sendBtnEl.disabled = true;
+        }
+      } catch (_) {
+        setNotice("无法连接后端服务，请确认服务器已启动。", "error");
+        sendBtnEl.disabled = true;
+      }
+    }
+
     function bootstrap() {
       const greeting = "你好，我是 FBIF 智能助手。你可以直接问我展会、展商、文章、票务等问题。";
       appendMessage("assistant", greeting);
       state.history.push({ role: "assistant", content: greeting });
       inputEl.focus();
       autoResizeTextarea();
+      checkServerConfig();
     }
 
     bootstrap();

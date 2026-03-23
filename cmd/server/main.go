@@ -96,7 +96,11 @@ func newMux(cfg config, client *http.Client) *http.ServeMux {
 	fileServer := http.FileServer(http.Dir("."))
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		configured := cfg.APIKey != "" && cfg.ServiceResourceID != ""
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"status":     "ok",
+			"configured": configured,
+		})
 	})
 
 	mux.HandleFunc("/api/chat/stream", func(w http.ResponseWriter, r *http.Request) {
