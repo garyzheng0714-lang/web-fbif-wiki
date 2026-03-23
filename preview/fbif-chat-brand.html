@@ -405,8 +405,14 @@
         .replaceAll("'", "&#39;");
     }
 
+    function stripKBTags(text) {
+      return text
+        .replace(/<reference\b[^>]*>[\s\S]*?<\/reference>/gi, "")
+        .replace(/<illustration\b[^>]*>[\s\S]*?<\/illustration>/gi, "");
+    }
+
     function formatText(text) {
-      return escapeHTML(text).replace(/\n/g, "<br>");
+      return escapeHTML(stripKBTags(text)).replace(/\n/g, "<br>");
     }
 
     let scrollRAF = null;

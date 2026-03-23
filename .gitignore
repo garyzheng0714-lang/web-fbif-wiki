@@ -1,3 +1,5 @@
+.env
 .preview-server.log
 .preview-server.pid
 /server
+.gstack/
