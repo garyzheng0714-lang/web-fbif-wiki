@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FBIF 智能助手</title>
+  <link rel="icon" href="https://fbif-feishu-base.oss-cn-shanghai.aliyuncs.com/fbif-attachment-to-url/2026/03/tblMQeXvSGd7Hebf_64441f85vYBjZN6VXlZ7mA_1773986737516/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260320133605_1541_594_1773986737699.png" type="image/png">
   <style>
     :root {
       --primary: #005CB2;
@@ -396,10 +397,10 @@
 
       <form class="chat-form" id="chatForm">
         <div class="suggestions" id="suggestions">
-          <button type="button" class="suggestion-chip">FBIF2026 有哪些特色活动？</button>
-          <button type="button" class="suggestion-chip">今年食品饮料有哪些新趋势？</button>
-          <button type="button" class="suggestion-chip">FBIF2026 在哪里举办？</button>
-          <button type="button" class="suggestion-chip">如何参加 FBIF 展览？</button>
+          <button type="button" class="suggestion-chip">FBIF2026 什么时候、在哪里举办？</button>
+          <button type="button" class="suggestion-chip">门票多少钱，怎么购买？</button>
+          <button type="button" class="suggestion-chip">如何申请参展？</button>
+          <button type="button" class="suggestion-chip">有哪些创新奖项可以报名？</button>
         </div>
         <div class="input-row">
           <textarea
@@ -474,8 +475,13 @@
         .replace(/<illustration\b[^>]*>[\s\S]*?<\/illustration>/gi, "");
     }
 
+    const _mdRenderer = new marked.Renderer();
+    _mdRenderer.link = (href, title, text) => {
+      const t = title ? ` title="${title}"` : '';
+      return `<a href="${href}"${t} target="_blank" rel="noopener noreferrer">${text}</a>`;
+    };
     function renderMarkdown(text) {
-      return marked.parse(stripKBTags(text), { breaks: true, gfm: true });
+      return marked.parse(stripKBTags(text), { breaks: true, gfm: true, renderer: _mdRenderer });
     }
 
     let scrollRAF = null;
