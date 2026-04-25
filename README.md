@@ -1,6 +1,18 @@
-# FBIF Wiki Chat
+# web-fbif-wiki
 
-FBIF 智能助手网页聊天 Demo。服务端使用 Go 提供静态页面、健康检查、链接预览和 SSE 流式聊天接口，聊天后端优先使用 Coze API，未配置 Coze 时可切换到火山方舟知识库。仓库还包含 `knowledge-sync` 工具，用于从配置的信源网页抓取内容、生成 Q&A 并同步到飞书多维表格。
+![类型](https://img.shields.io/badge/%E7%B1%BB%E5%9E%8B-FBIF%20%E5%B7%A5%E5%85%B7-2563eb?style=flat-square)
+![语言](https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-Go-0f766e?style=flat-square)
+![状态](https://img.shields.io/badge/%E7%8A%B6%E6%80%81-%E8%81%8A%E5%A4%A9%E6%9C%8D%E5%8A%A1-16a34a?style=flat-square)
+![README](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-brightgreen?style=flat-square)
+
+FBIF 工具：面向 FBIF 知识问答的网页聊天服务与知识同步工具，支持流式聊天、链接预览和飞书多维表格同步。
+
+## 仓库定位
+
+- 分类：FBIF 知识问答 Web 服务 / 知识同步工具。
+- 面向对象：需要为 FBIF 相关内容提供网页问答入口，并把信源内容整理到飞书多维表格的运营或开发人员。
+- 主要边界：`cmd/server` 提供聊天页面和 API，`cmd/knowledge-sync` 负责信源抓取、Q&A 生成和飞书多维表格同步。
+- 与智能客服仓库的区别：本仓库偏网页聊天 Demo 和知识同步工具，不是微信客服、企业微信客服或公众号自动回复系统。
 
 ## 功能特性
 
